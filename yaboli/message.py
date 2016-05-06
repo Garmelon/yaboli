@@ -7,59 +7,53 @@ class Message():
 	This class keeps track of message details.
 	"""
 	
-	def __init__(self, message):
+	def __init__(self, id, time, sender, content, parent=None, edited=None, deleted=None,
+	             truncated=None):
 		"""
-		message - A euphoria message: http://api.euphoria.io/#message
+		id        - message id
+		time      - time the message was sent (epoch)
+		sender    - session of the sender
+		content   - content of the message
+		parent    - id of the parent message, or None
+		edited    - time of last edit (epoch)
+		deleted   - time of deletion (epoch)
+		truncated - message was truncated
 		"""
 		
-		self.message = message
-		self.session = session.Session(message["sender"])
+		self.id = id
+		self time = time
+		self.sender = sender
+		self.content = content
+		self.parent = parent
+		self edited = edited
+		self.deleted = deleted
+		self.truncated = truncated
 	
-	def id(self):
+	@classmethod
+	def from_data(self, data):
 		"""
-		id() -> str
+		Creates and returns a message created from the data.
+		NOTE: This also creates a session object using the data in "sender".
 		
-		The message's unique id.
-		"""
-		
-		return self.message["id"]
-	
-	def parent(self):
-		"""
-		parent() -> str
-		
-		The message's parent's unique id.
+		data - A euphoria message: http://api.euphoria.io/#message
 		"""
 		
-		if "parent" in self.message:
-			return self.message["parent"]
-	
-	def content(self):
-		"""
-		content() -> str
+		sender = session.Session.from_data(data["sender"])
+		parent = data["parent"] if "parent" in data else None
+		edited = data["edited"] if "edited" in data else None
+		deleted = data["deleted"] if "deleted" in data else None
+		truncated = data["truncated"] if "truncated" in data else None
 		
-		The message's content.
-		"""
-		
-		return self.message["content"]
-	
-	def sender(self):
-		"""
-		sender() -> Session
-		
-		The sender of the message.
-		"""
-		
-		return self.session
-	
-	def time(self):
-		"""
-		time() -> int
-		
-		Unix epoch timestamp of when the message was posted.
-		"""
-		
-		return self.message["time"]
+		return Message(
+			data["id"],
+			data["time"],
+			sender,
+			data["content"],
+			parent=parent,
+			edited=edited,
+			deleted=deleted,
+			truncated=truncated
+		)
 	
 	def time_formatted(self, date=False):
 		"""
@@ -73,15 +67,33 @@ class Message():
 		"""
 		
 		if date:
-			return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(self.time()))
+			return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(self.time))
 		else:
-			return time.strftime("%H:%M:%S", time.gmtime(self.time()))
+			return time.strftime("%H:%M:%S", time.gmtime(self.time))
 	
-	def deleted(self):
+	def is_edited(self):
 		"""
-		deleted() -> bool
+		is_edited() -> bool
 		
-		Is this message deleted?
+		Has this message been edited?
 		"""
 		
-		return True if "deleted" in self.message and self.message["deleted"] else False
+		return True if self.edited is not None else False
+	
+	def is_deleted(self):
+		"""
+		is_deleted() -> bool
+		
+		Has this message been deleted?
+		"""
+		
+		return True self.deleted is not None else False
+	
+	def is_truncated(self):
+		"""
+		is_truncated() -> bool
+		
+		Has this message been truncated?
+		"""
+		
+		return True self.truncated is not None else False
