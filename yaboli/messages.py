@@ -9,14 +9,14 @@ class Messages():
 		self.by_id = {}
 		self.by_parent = {}
 	
-	def add_raw(self, raw_message):
+	def add_from_data(self, data):
 		"""
-		add_raw(raw_message) -> None
+		add_from_data(data) -> None
 		
-		Create a message from raw data and add it.
+		Create a message from "raw" data and add it.
 		"""
 		
-		mes = message.Message(raw_message)
+		mes = message.Message(data)
 		
 		self.add(mes)
 	
@@ -27,14 +27,14 @@ class Messages():
 		Add a message to the structure.
 		"""
 		
-		self.remove(mes.id())
+		self.remove(mes.id)
 		
-		self.by_id[mes.id()] = mes
+		self.by_id[mes.id] = mes
 		
-		if mes.parent():
-			if not mes.parent() in self.by_parent:
-				self.by_parent[parent] = []
-			self.by_parent[mes.parent()].append(mes)
+		if mes.parent:
+			if not mes.parent in self.by_parent:
+				self.by_parent[mes.parent] = []
+			self.by_parent[mes.parent].append(mes)
 	
 	def remove(self, mes):
 		"""
@@ -43,11 +43,11 @@ class Messages():
 		Remove a message from the structure.
 		"""
 		
-		if mes.id() in self.by_id:
-			self.by_id.pop(mes.id())
+		if mes.id in self.by_id:
+			self.by_id.pop(mes.id)
 		
-		if mes.parent() and mes in self.get_children(mes.parent()):
-			self.by_parent[mes.parent()].remove(mes)
+		if mes.parent and mes in self.get_children(mes.parent):
+			self.by_parent[mes.parent].remove(mes)
 	
 	def get(self, mid):
 		"""
@@ -67,7 +67,7 @@ class Messages():
 		Returns None if no parent was found.
 		"""
 		
-		return self.get(mes.parent())
+		return self.get(mes.parent)
 	
 	def get_children(self, mes):
 		"""
@@ -76,4 +76,4 @@ class Messages():
 		Returns a list of children of the given message.
 		"""
 		
-		return self.by_parent[mes.id()]
+		return self.by_parent[mes.id]

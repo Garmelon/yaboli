@@ -35,7 +35,7 @@ class Message():
 		Creates and returns a message created from the data.
 		NOTE: This also creates a session object using the data in "sender".
 		
-		data - A euphoria message: http://api.euphoria.io/#message
+		data - a euphoria message: http://api.euphoria.io/#message
 		"""
 		
 		sender = session.Session.from_data(data["sender"])
@@ -44,7 +44,7 @@ class Message():
 		deleted = data["deleted"] if "deleted" in data else None
 		truncated = data["truncated"] if "truncated" in data else None
 		
-		return Message(
+		return self(
 			data["id"],
 			data["time"],
 			sender,
