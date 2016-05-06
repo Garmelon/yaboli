@@ -16,7 +16,7 @@ class Messages():
 		Create a message from "raw" data and add it.
 		"""
 		
-		mes = message.Message(data)
+		mes = message.Message.from_data(data)
 		
 		self.add(mes)
 	
