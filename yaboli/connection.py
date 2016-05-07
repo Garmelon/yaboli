@@ -4,6 +4,8 @@ import threading
 import websocket
 from websocket import WebSocketException as WSException
 
+from . import callbacks
+
 
 ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
 
@@ -33,8 +35,8 @@ class Connection():
 		
 		self.ws = None
 		self.send_id = 0
-		self.callbacks = {}
-		self.id_callbacks = {}
+		self.callbacks = callbacks.Callbacks()
+		self.id_callbacks = callbacks.Callbacks()
 	
 	def connect(self, tries=-1, delay=10):
 		"""
@@ -132,39 +134,21 @@ class Connection():
 	
 	def add_callback(self, ptype, callback, *args, **kwargs):
 		"""
-		add_callback(ptype, callback) -> None
+		add_callback(ptype, callback, *args, **kwargs) -> None
 		
 		Add a function to be called when a packet of type ptype is received.
 		"""
 		
-		if not ptype in self.callbacks:
-			self.callbacks[ptype] = []
-		
-		callback_info = {
-			"callback": callback,
-			"args": args,
-			"kwargs": kwargs
-		}
-		
-		self.callbacks[ptype].append(callback_info)
+		self.callbacks.add_callback(ptype, callback, *args, **kwargs)
 	
 	def add_id_callback(self, pid, callback, *args, **kwargs):
 		"""
-		add_id_callback(pid, callback) -> None
+		add_id_callback(pid, callback, *args, **kwargs) -> None
 		
 		Add a function to be called when a packet with id pid is received.
 		"""
 		
-		if not pid in self.id_callbacks:
-			self.id_callbacks[pid] = []
-		
-		callback_info = {
-			"callback": callback,
-			"args": args,
-			"kwargs": kwargs
-		}
-		
-		self.id_callbacks[pid].append(callback_info)
+		self.id_callbacks.add_callback(pid, callback, *args, **kwargs)
 	
 	def call_callback(self, event, *args):
 		"""
@@ -173,12 +157,7 @@ class Connection():
 		Call all callbacks subscribed to the event with *args.
 		"""
 		
-		if event in self.callbacks:
-			for c_info in self.callbacks[event]:
-				c = c_info["callback"]
-				args = c_info["args"] + args
-				kwargs = c_info["kwargs"]
-				c(*args, **kwargs)
+		self.callbacks.call_callback(event, *args)
 	
 	def call_id_callback(self, pid, *args):
 		"""
@@ -187,12 +166,8 @@ class Connection():
 		Call all callbacks subscribed to the pid with *args.
 		"""
 		
-		if pid in self.id_callbacks:
-			for c_info in self.id_callbacks.pop(pid):
-				c = c_info["callback"]
-				args = c_info["args"] + args
-				kwargs = c_info["kwargs"]
-				c(*args, **kwargs)
+		self.id_callbacks.call_callback(pid, *args)
+		self.id_callbacks.del_callbacks(pid)
 	
 	def handle_json(self, data):
 		"""
