@@ -99,4 +99,3 @@ class Session():
 		"""
 		
 		return self.staff and True or False
-	
