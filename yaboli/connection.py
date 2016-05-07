@@ -12,6 +12,14 @@ class Connection():
 	"""
 	Stays connected to a room in its own thread.
 	Callback functions are called when a packet is received.
+	
+	Callbacks:
+		- all the message types from api.euphoria.io
+		  These pass the packet data as argument to the called functions.
+		  The other callbacks don't pass any special arguments.
+		- "connect"
+		- "disconnect"
+		- "stop"
 	"""
 	
 	def __init__(self, room):
@@ -46,6 +54,9 @@ class Connection():
 					ROOM_FORMAT.format(self.room),
 					enable_multithread=True
 				)
+				
+				self.call_callback("connect")
+				
 				return True
 			except WSException:
 				if tries > 0:
@@ -65,6 +76,8 @@ class Connection():
 		if self.ws:
 			self.ws.close()
 			self.ws = None
+		
+		self.call_callback("disconnect")
 	
 	def launch(self):
 		"""
@@ -104,6 +117,8 @@ class Connection():
 		
 		self.stopping = True
 		self.disconnect()
+		
+		self.call_callback("stop")
 	
 	def join(self):
 		"""
