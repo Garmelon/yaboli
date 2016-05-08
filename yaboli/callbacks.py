@@ -6,12 +6,12 @@ class Callbacks():
 	def __init__(self):
 		self._callbacks = {}
 	
-	def add_callback(self, event, callback, *args, **kwargs):
+	def add(self, event, callback, *args, **kwargs):
 		"""
-		add_callback(event, callback, *args, **kwargs) -> None
+		add(event, callback, *args, **kwargs) -> None
 		
 		Add a function to be called on event.
-		The function will be called witand *+kwargs.
+		The function will be called with *args and **kwargs.
 		Certain arguments might be added, depending on the event.
 		"""
 		
@@ -26,22 +26,22 @@ class Callbacks():
 		
 		self._callbacks[event].append(callback_info)
 	
-	def del_callbacks(self, event):
+	def remove(self, event):
 		"""
-		del_callbacks(event) -> None
+		remove(event) -> None
 		
-		Delete all callbacks attached to that event.
+		Remove all callbacks attached to that event.
 		"""
 		
 		if event in self._callbacks:
 			del self._callbacks[event]
 	
-	def call_callback(self, event, *args):
+	def call(self, event, *args):
 		"""
-		call_callback(event) -> None
+		call(event) -> None
 		
-		Call all callbacks subscribed to the event with *args and the arguments
-		specified when the callback was added.
+		Call all callbacks subscribed to the event with *args and the arguments specified when the
+		callback was added.
 		"""
 		
 		if event in self._callbacks:
