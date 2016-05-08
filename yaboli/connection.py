@@ -139,7 +139,7 @@ class Connection():
 		Add a function to be called when a packet of type ptype is received.
 		"""
 		
-		self.callbacks.add_callback(ptype, callback, *args, **kwargs)
+		self.callbacks.add(ptype, callback, *args, **kwargs)
 	
 	def add_id_callback(self, pid, callback, *args, **kwargs):
 		"""
@@ -148,7 +148,7 @@ class Connection():
 		Add a function to be called when a packet with id pid is received.
 		"""
 		
-		self.id_callbacks.add_callback(pid, callback, *args, **kwargs)
+		self.id_callbacks.add(pid, callback, *args, **kwargs)
 	
 	def call_callback(self, event, *args):
 		"""
@@ -157,7 +157,7 @@ class Connection():
 		Call all callbacks subscribed to the event with *args.
 		"""
 		
-		self.callbacks.call_callback(event, *args)
+		self.callbacks.call(event, *args)
 	
 	def call_id_callback(self, pid, *args):
 		"""
@@ -166,8 +166,8 @@ class Connection():
 		Call all callbacks subscribed to the pid with *args.
 		"""
 		
-		self.id_callbacks.call_callback(pid, *args)
-		self.id_callbacks.del_callbacks(pid)
+		self.id_callbacks.call(pid, *args)
+		self.id_callbacks.remove(pid)
 	
 	def handle_json(self, data):
 		"""

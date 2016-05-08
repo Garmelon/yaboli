@@ -21,11 +21,11 @@ class Message():
 		"""
 		
 		self.id = id
-		self time = time
+		self.time = time
 		self.sender = sender
 		self.content = content
 		self.parent = parent
-		self edited = edited
+		self.edited = edited
 		self.deleted = deleted
 		self.truncated = truncated
 	
@@ -87,7 +87,7 @@ class Message():
 		Has this message been deleted?
 		"""
 		
-		return True self.deleted is not None else False
+		return True if self.deleted is not None else False
 	
 	def is_truncated(self):
 		"""
@@ -96,4 +96,4 @@ class Message():
 		Has this message been truncated?
 		"""
 		
-		return True self.truncated is not None else False
+		return True if self.truncated is not None else False
