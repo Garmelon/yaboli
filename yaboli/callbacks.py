@@ -15,7 +15,7 @@ class Callbacks():
 		Certain arguments might be added, depending on the event.
 		"""
 		
-		if not event in self.callbacks:
+		if not event in self._callbacks:
 			self._callbacks[event] = []
 		
 		callback_info = {
