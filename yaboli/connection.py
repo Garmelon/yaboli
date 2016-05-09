@@ -24,12 +24,14 @@ class Connection():
 		- "stop"
 	"""
 	
-	def __init__(self, room):
+	def __init__(self, room, url_format=ROOM_FORMAT):
 		"""
 		room - name of the room to connect to
+		
 		"""
 		
 		self.room = room
+		self._url = url_format.format(self.room)
 		
 		self._stopping = False
 		
@@ -54,7 +56,7 @@ class Connection():
 		while tries != 0:
 			try:
 				self._ws = websocket.create_connection(
-					ROOM_FORMAT.format(self.room),
+					self._url,
 					enable_multithread=True
 				)
 				
