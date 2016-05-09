@@ -31,14 +31,15 @@ class Connection():
 		
 		self.room = room
 		
-		self.stopping = False
+		self._stopping = False
 		
-		self.ws = None
-		self.send_id = 0
-		self.callbacks = callbacks.Callbacks()
-		self.id_callbacks = callbacks.Callbacks()
+		self._ws = None
+		self._thread = None
+		self._send_id = 0
+		self._callbacks = callbacks.Callbacks()
+		self._id_callbacks = callbacks.Callbacks()
 	
-	def connect(self, tries=-1, delay=10):
+	def _connect(self, tries=-1, delay=10):
 		"""
 		_connect(tries, delay) -> bool
 		
@@ -52,12 +53,12 @@ class Connection():
 		
 		while tries != 0:
 			try:
-				self.ws = websocket.create_connection(
+				self._ws = websocket.create_connection(
 					ROOM_FORMAT.format(self.room),
 					enable_multithread=True
 				)
 				
-				self.call_callback("connect")
+				self._callbacks.call("connect")
 				
 				return True
 			except WSException:
@@ -67,19 +68,19 @@ class Connection():
 					time.sleep(delay)
 		return False
 	
-	def disconnect(self):
+	def _disconnect(self):
 		"""
-		disconnect() -> None
+		_disconnect() -> None
 		
 		Reconnect to the room.
 		WARNING: To completely disconnect, use stop().
 		"""
 		
-		if self.ws:
-			self.ws.close()
-			self.ws = None
+		if self._ws:
+			self._ws.close()
+			self._ws = None
 		
-		self.call_callback("disconnect")
+		self._callbacks.call("disconnect")
 	
 	def launch(self):
 		"""
@@ -88,27 +89,27 @@ class Connection():
 		Connect to the room and spawn a new thread running run.
 		"""
 		
-		if self.connect(tries=1):
-			self.thread = threading.Thread(target=self.run, name=self.room)
-			self.thread.start()
-			return self.thread
+		if self._connect(tries=1):
+			self._thread = threading.Thread(target=self._run, name=self.room)
+			self._thread.start()
+			return self._thread
 		else:
 			self.stop()
 	
-	def run(self):
+	def _run(self):
 		"""
-		run() -> None
+		_run() -> None
 		
 		Receive messages.
 		"""
 		
-		while not self.stopping:
+		while not self._stopping:
 			try:
-				self.handle_json(self.ws.recv())
+				self._handle_json(self._ws.recv())
 			except (WSException, OSError, ValueError):
-				if not self.stopping:
-					self.disconnect()
-					self.connect()
+				if not self._stopping:
+					self._disconnect()
+					self._connect()
 	
 	def stop(self):
 		"""
@@ -117,10 +118,10 @@ class Connection():
 		Close the connection to the room.
 		"""
 		
-		self.stopping = True
-		self.disconnect()
+		self._stopping = True
+		self._disconnect()
 		
-		self.call_callback("stop")
+		self._callbacks.call("stop")
 	
 	def join(self):
 		"""
@@ -129,8 +130,17 @@ class Connection():
 		Join the thread spawned by launch.
 		"""
 		
-		if self.thread:
-			self.thread.join()
+		if self._thread:
+			self._thread.join()
+	
+	def next_id(self):
+		"""
+		next_id() -> id
+		
+		Returns the id that will be used for the next package.
+		"""
+		
+		return str(self._send_id)
 	
 	def add_callback(self, ptype, callback, *args, **kwargs):
 		"""
@@ -139,7 +149,7 @@ class Connection():
 		Add a function to be called when a packet of type ptype is received.
 		"""
 		
-		self.callbacks.add(ptype, callback, *args, **kwargs)
+		self._callbacks.add(ptype, callback, *args, **kwargs)
 	
 	def add_id_callback(self, pid, callback, *args, **kwargs):
 		"""
@@ -148,28 +158,18 @@ class Connection():
 		Add a function to be called when a packet with id pid is received.
 		"""
 		
-		self.id_callbacks.add(pid, callback, *args, **kwargs)
+		self._id_callbacks.add(pid, callback, *args, **kwargs)
 	
-	def call_callback(self, event, *args):
+	def add_next_callback(self, callback, *args, **kwargs):
 		"""
-		call_callback(event) -> None
+		add_next_callback(callback, *args, **kwargs) -> None
 		
-		Call all callbacks subscribed to the event with *args.
+		Add a function to be called when the answer to the next message sent is received.
 		"""
 		
-		self.callbacks.call(event, *args)
+		self._id_callbacks.add(self.next_id(), callback, *args, **kwargs)
 	
-	def call_id_callback(self, pid, *args):
-		"""
-		call_callback(pid) -> None
-		
-		Call all callbacks subscribed to the pid with *args.
-		"""
-		
-		self.id_callbacks.call(pid, *args)
-		self.id_callbacks.remove(pid)
-	
-	def handle_json(self, data):
+	def _handle_json(self, data):
 		"""
 		handle_json(data) -> None
 		
@@ -177,11 +177,11 @@ class Connection():
 		"""
 		
 		packet = json.loads(data)
-		self.handle_packet(packet)
+		self._handle_packet(packet)
 	
-	def handle_packet(self, packet):
+	def _handle_packet(self, packet):
 		"""
-		handle_packet(ptype, data) -> None
+		_handle_packet(ptype, data) -> None
 		
 		Handle incoming packets
 		"""
@@ -191,23 +191,24 @@ class Connection():
 		else:
 			data = None
 		
-		self.call_callback(packet["type"], data)
+		self._callbacks.call(packet["type"], data)
 		
 		if "id" in packet:
-			self.call_id_callback(packet["id"], data)
+			self._id_callbacks.call(packet["id"], data)
+			self._id_callbacks.remove(packet["id"])
 	
-	def send_json(self, data):
+	def _send_json(self, data):
 		"""
-		send_json(data) -> None
+		_send_json(data) -> None
 		
 		Send 'raw' json.
 		"""
 		
-		if self.ws:
+		if self._ws:
 			try:
-				self.ws.send(json.dumps(data))
+				self._ws.send(json.dumps(data))
 			except WSException:
-				self.disconnect()
+				self._disconnect()
 	
 	def send_packet(self, ptype, **kwargs):
 		"""
@@ -219,7 +220,7 @@ class Connection():
 		packet = {
 			"type": ptype,
 			"data": kwargs or None,
-			"id": str(self.send_id)
+			"id": str(self._send_id)
 		}
-		self.send_id += 1
-		self.send_json(packet)
+		self._send_id += 1
+		self._send_json(packet)
