@@ -63,6 +63,16 @@ class Messages():
 			if parent and mes in self.get_children(parent.id):
 				self._by_parent[mes.parent].remove(mes)
 	
+	def remove_all(self):
+		"""
+		remove_all() -> None
+		
+		Removes all messages.
+		"""
+		
+		self._by_id = {}
+		self._by_parent = {}
+	
 	def get(self, mid):
 		"""
 		get(message_id) -> Message
@@ -72,6 +82,32 @@ class Messages():
 		
 		if mid in self._by_id:
 			return self._by_id[mid]
+	
+	def get_oldest(self):
+		"""
+		get_oldest() -> Message
+		
+		Returns the oldest message, if found.
+		"""
+		
+		oldest = None
+		for mid in self._by_id:
+			if mid < oldest:
+				oldest = mid
+		return self.get(oldest)
+	
+	def get_youngest(self):
+		"""
+		get_youngest() -> Message
+		
+		Returns the youngest message, if found.
+		"""
+		
+		youngest = None
+		for mid in self._by_id:
+			if mid > youngest:
+				youngest = mid
+		return self.get(youngest)
 	
 	def get_parent(self, mid):
 		"""
