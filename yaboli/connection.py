@@ -6,10 +6,6 @@ from websocket import WebSocketException as WSException
 
 from . import callbacks
 
-
-ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
-
-
 class Connection():
 	"""
 	Stays connected to a room in its own thread.
@@ -24,13 +20,18 @@ class Connection():
 		- "stop"
 	"""
 	
-	def __init__(self, room, url_format=ROOM_FORMAT):
+	ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
+	
+	def __init__(self, room, url_format=None):
 		"""
 		room - name of the room to connect to
 		
 		"""
 		
 		self.room = room
+		
+		if not url_format:
+			url_format = self.ROOM_FORMAT
 		self._url = url_format.format(self.room)
 		
 		self._stopping = False
