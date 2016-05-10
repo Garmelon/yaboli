@@ -65,6 +65,15 @@ class Sessions():
 				sesnew[sid] = ses
 		self._sessions = sesnew
 	
+	def remove_all(self):
+		"""
+		remove_all() -> None
+		
+		Removes all sessions.
+		"""
+		
+		self._sessions = {}
+	
 	def get_people(self):
 		"""
 		get_people() -> list
