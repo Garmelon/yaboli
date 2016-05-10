@@ -50,7 +50,7 @@ class Session():
 		The session's type (bot, account, agent).
 		"""
 		
-		return self.user_id.split(":")[0]
+		return self.id.split(":")[0]
 	
 	def mentionable(self):
 		"""
