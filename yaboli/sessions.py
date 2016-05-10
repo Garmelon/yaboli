@@ -9,7 +9,7 @@ class Sessions():
 		"""
 		TODO
 		"""
-		self.sessions = {}
+		self._sessions = {}
 	
 	def add_from_data(self, data):
 		"""
@@ -20,7 +20,7 @@ class Sessions():
 		
 		ses = session.Session.from_data(data)
 		
-		self.sessions[ses.session_id] = ses
+		self._sessions[ses.session_id] = ses
 	
 	def add(self, ses):
 		"""
@@ -29,7 +29,7 @@ class Sessions():
 		Add a session.
 		"""
 		
-		self.sessions[ses.session_id] = ses
+		self._sessions[ses.session_id] = ses
 	
 	def get(self, sid):
 		"""
@@ -38,7 +38,7 @@ class Sessions():
 		Returns the session with that id.
 		"""
 		
-		return self.sessions[sid]
+		return self._sessions[sid]
 	
 	def remove(self, ses):
 		"""
@@ -47,8 +47,8 @@ class Sessions():
 		Remove a session.
 		"""
 		
-		if ses.session_id in self.sessions:
-			self.sessions.pop(ses.session_id)
+		if ses.session_id in self._sessions:
+			self._sessions.pop(ses.session_id)
 	
 	def remove_on_network_partition(self, server_id, server_era):
 		"""
@@ -58,12 +58,12 @@ class Sessions():
 		http://api.euphoria.io/#network-event
 		"""
 		
-		# Another possible solution would be to create a new dict containing only the sessions left,
-		# and then to replace the old one with the new one.
-		for sid in self.sessions.keys():
+		sesnew = {}
+		for sid in self._sessions:
 			ses = self.get(sid)
-			if ses.server_id == server_id and ses.server_era == server_era:
-				self.remove(ses)
+			if not (ses.server_id == server_id and ses.server_era == server_era):
+				sesnew[sid] = ses
+		self._sessions = sesnew
 	
 	def get_people(self):
 		"""
@@ -74,21 +74,21 @@ class Sessions():
 		
 		# not a list comprehension because that would span several lines too
 		people = []
-		for sid in self.sessions:
+		for sid in self._sessions:
 			ses = self.get(sid)
 			if ses.session_type in ["agent", "account"] and ses.name:
 				people.append(ses)
 		return people
 	
-	def get_by_type(self, tp):
+	def _get_by_type(self, tp):
 		"""
-		get_by_type(session_type) -> list
+		_get_by_type(session_type) -> list
 		
 		Returns a list of all non-lurker sessions with that type.
 		"""
 		
-		return [ses for sid, ses in enumerate(self.sessions)
-		        if ses.session_type == tp and ses.name]
+		return [ses for sid, ses in self._sessions.items()
+		        if ses.session_type() == tp and ses.name]
 	
 	def get_accounts(self):
 		"""
@@ -97,7 +97,7 @@ class Sessions():
 		Returns a list of all logged-in sessions.
 		"""
 		
-		return self.get_by_type("account")
+		return self._get_by_type("account")
 	
 	def get_agents(self):
 		"""
@@ -106,7 +106,7 @@ class Sessions():
 		Returns a list of all sessions who are not signed into an account and not bots or lurkers.
 		"""
 		
-		return self.get_by_type("agent")
+		return self._get_by_type("agent")
 	
 	def get_bots(self):
 		"""
@@ -115,7 +115,7 @@ class Sessions():
 		Returns a list of all bot sessions.
 		"""
 		
-		return self.get_by_type("bot")
+		return self._get_by_type("bot")
 	
 	def get_lurkers(self):
 		"""
@@ -124,4 +124,4 @@ class Sessions():
 		Returns a list of all lurker sessions.
 		"""
 		
-		return [ses for sid, ses in enumerate(self.sessions) if not ses.name]
+		return [ses for sid, ses in self._sessions.items() if not ses.name]
