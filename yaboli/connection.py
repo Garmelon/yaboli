@@ -71,9 +71,9 @@ class Connection():
 					time.sleep(delay)
 		return False
 	
-	def _disconnect(self):
+	def disconnect(self):
 		"""
-		_disconnect() -> None
+		disconnect() -> None
 		
 		Reconnect to the room.
 		WARNING: To completely disconnect, use stop().
