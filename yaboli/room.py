@@ -109,6 +109,24 @@ class Room():
 		
 		return self._messages.get_top_level()
 	
+	def get_msg_oldest(self):
+		"""
+		get_msg_oldest() -> Message
+		
+		Returns the oldest message, if found.
+		"""
+		
+		return self._messages.get_oldest()
+	
+	def get_msg_youngest(self):
+		"""
+		get_msg_youngest() -> Message
+		
+		Returns the youngest message, if found.
+		"""
+		
+		return self._messages.get_youngest()
+	
 	def get_session(self, sid):
 		"""
 		get_session(session_id) -> session
