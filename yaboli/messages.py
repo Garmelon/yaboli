@@ -7,7 +7,14 @@ class Messages():
 	Message storage class which preserves thread hierarchy.
 	"""
 	
-	def __init__(self):
+	def __init__(self, message_limit=500):
+		"""
+		message_limit - maximum amount of messages that will be stored at a time
+		               None - no limit
+		"""
+		
+		self.message_limit = message_limit
+		
 		self._by_id = {}
 		self._by_parent = {}
 	
@@ -46,6 +53,9 @@ class Messages():
 			if not mes.parent in self._by_parent:
 				self._by_parent[mes.parent] = []
 			self._by_parent[mes.parent].append(mes)
+		
+		if self.message_limit and len(self._by_id) > self.message_limit:
+			self.remove(self.get_oldest().id)
 	
 	def remove(self, mid):
 		"""

@@ -26,11 +26,13 @@ class Room():
 	sessions                     - session data has changed
 	"""
 	
-	def __init__(self, room, nick=None, password=None):
+	def __init__(self, room, nick=None, password=None, message_limit=500):
 		"""
-		room             - name of the room to connect to
-		nick             - nick to assume, None -> no nick
-		password         - room password (in case the room is private)
+		room          - name of the room to connect to
+		nick          - nick to assume, None -> no nick
+		password      - room password (in case the room is private)
+		message_limit - maximum amount of messages that will be stored at a time
+		                None - no limit
 		"""
 		
 		self.room = room
@@ -46,7 +48,7 @@ class Room():
 		self.ping_next = 0
 		self.ping_offset = 0 # difference between server and local time
 		
-		self._messages = messages.Messages()
+		self._messages = messages.Messages(message_limit=message_limit)
 		self._sessions = sessions.Sessions()
 		self._callbacks = callbacks.Callbacks()
 		
