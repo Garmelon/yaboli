@@ -33,7 +33,7 @@ class Sessions():
 	
 	def get(self, sid):
 		"""
-		get(session_id) -> session
+		get(session_id) -> Session
 		
 		Returns the session with that id.
 		"""

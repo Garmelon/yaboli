@@ -131,7 +131,7 @@ class Room():
 	
 	def get_session(self, sid):
 		"""
-		get_session(session_id) -> session
+		get_session(session_id) -> Session
 		
 		Returns the session with that id.
 		"""

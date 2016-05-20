@@ -10,7 +10,7 @@ class Messages():
 	def __init__(self, message_limit=500):
 		"""
 		message_limit - maximum amount of messages that will be stored at a time
-		               None - no limit
+		                None - no limit
 		"""
 		
 		self.message_limit = message_limit
