@@ -93,7 +93,8 @@ class Connection():
 		"""
 		
 		if self._connect(tries=1):
-			self._thread = threading.Thread(target=self._run, name=self.room)
+			self._thread = threading.Thread(target=self._run,
+			                                name="{}-{}".format(self.room, int(time.time())))
 			self._thread.start()
 			return self._thread
 		else:
@@ -109,7 +110,7 @@ class Connection():
 		while not self._stopping:
 			try:
 				self._handle_json(self._ws.recv())
-			except WSException:
+			except (WSException, ConnectionResetError):
 				if not self._stopping:
 					self.disconnect()
 					self._connect()
@@ -127,7 +128,7 @@ class Connection():
 		
 		self._callbacks.call("stop")
 		
-		if self._thread:
+		if self._thread and self._thread != threading.current_thread():
 			self._thread.join()
 	
 	def next_id(self):
