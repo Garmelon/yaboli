@@ -61,27 +61,6 @@ class Session():
 		
 		return "".join(c for c in self.name if not c in ",.!?;&<'\"" and not c.isspace()).lower()
 	
-	def listable(self, width):
-		"""
-		listable(width): -> prefixes, name
-		
-		Prefixes and name which together are <width> characters long or shorter.
-		"""
-		
-		prefixes = ""
-		if self.session_type() == "account":
-			prefixes += "*"
-		if self.is_manager():
-			prefixes += "m"
-		if self.is_staff():
-			prefixes += "s"
-		
-		name = self.name()
-		if len(prefixes + name) > width:
-			name = name[:width - len(prefixes) - 1] + "…"
-		
-		return prefixes, name
-	
 	def is_staff(self):
 		"""
 		is_staff() -> bool
