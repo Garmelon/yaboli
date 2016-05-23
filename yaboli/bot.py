@@ -444,7 +444,7 @@ class Bot():
 				msg += "\n!{} - {}".format(command, helptext)
 			
 			msg += ("\n\nFor help on the command syntax, try: !help @{0} -s\n"
-			        "For detailed help on a command, try: !help {0} <command>")
+			        "For detailed help on a command, try: !help @{0} <command>")
 			msg = msg.format(self.mentionable())
 		
 		self.room.send_message(msg, parent=message.id)
