@@ -257,14 +257,18 @@ class Room():
 		self._con.add_next_callback(self._handle_nick_reply)
 		self._con.send_packet("nick", name=nick)
 	
-	def mentionable(self):
+	def mentionable(self, name=None):
 		"""
 		mentionable()
 		
-		A mentionable version of the current nick.
+		A mentionable version of the name.
+		The name defaults to the bot's name.
 		"""
 		
-		return "".join(c for c in self.nick if not c in ",.!?;&<'\"" and not c.isspace()).lower()
+		if name is None:
+			name = self.nick
+		
+		return "".join(c for c in name if not c in ".!?;&<'\"" and not c.isspace())
 	
 	def send_message(self, content, parent=None):
 		"""

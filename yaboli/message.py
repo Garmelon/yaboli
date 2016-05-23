@@ -71,15 +71,6 @@ class Message():
 		else:
 			return time.strftime("%H:%M:%S", time.gmtime(self.time))
 	
-	def mentionable(self):
-		"""
-		mentionable() -> str
-		
-		Converts the name to a mentionable format.
-		"""
-		
-		return self.sender.mentionable()
-	
 	def is_edited(self):
 		"""
 		is_edited() -> bool

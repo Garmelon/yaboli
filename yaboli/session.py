@@ -52,15 +52,6 @@ class Session():
 		
 		return self.id.split(":")[0]
 	
-	def mentionable(self):
-		"""
-		mentionable() -> str
-		
-		Converts the name to a mentionable format.
-		"""
-		
-		return "".join(c for c in self.name if not c in ",.!?;&<'\"" and not c.isspace()).lower()
-	
 	def is_staff(self):
 		"""
 		is_staff() -> bool
