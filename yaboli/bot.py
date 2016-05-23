@@ -406,7 +406,7 @@ class Bot():
 			self.room.send_message("Bot could not be created.", parent=message.id)
 		else:
 			bot.created_in = self.roomname()
-			bot.created_by = message.mentionable()
+			bot.created_by = self.room.mentionable(message.sender.name)
 			
 			self.room.send_message("Created @{} in &{}.".format(bot.mentionable(), room),
 			                       parent=message.id)
