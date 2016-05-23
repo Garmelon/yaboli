@@ -78,7 +78,7 @@ class Message():
 		Converts the name to a mentionable format.
 		"""
 		
-		return "".join(c for c in self.name if not c in ",.!?;&<'\"" and not c.isspace()).lower()
+		return self.sender.mentionable()
 	
 	def is_edited(self):
 		"""
