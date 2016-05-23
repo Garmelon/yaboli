@@ -248,6 +248,15 @@ class Room():
 		self._con.add_next_callback(self._handle_nick_reply)
 		self._con.send_packet("nick", name=nick)
 	
+	def mentionable(self):
+		"""
+		mentionable()
+		
+		A mentionable version of the current nick.
+		"""
+		
+		return "".join(c for c in self.nick if not c in ",.!?;&<'\"" and not c.isspace()).lower()
+	
 	def send_message(self, content, parent=None):
 		"""
 		send_message(content, parent) -> None
