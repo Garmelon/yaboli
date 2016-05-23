@@ -82,4 +82,4 @@ class BotManager():
 		"""
 		
 		return {bot_id: bot for bot_id, bot in self.bots.items()
-		        if bot.roomname() == room and bot.mentionable() == nick}
+		        if bot.roomname() == room and bot.mentionable().lower() == nick.lower()}
