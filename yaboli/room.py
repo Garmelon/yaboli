@@ -347,10 +347,12 @@ class Room():
 		
 		self._callbacks.call("stop")
 	
-	def _handle_bounce_event(self, data):
+	def _handle_bounce_event(self, data, error):
 		"""
 		TODO
 		"""
+		if error:
+			self.stop()
 		
 		if self.password is not None:
 			self.authenticate(self.password)
@@ -369,6 +371,11 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "hello-event", error)
+			self.stop()
+			return
+		
 		self.session = session.Session.from_data(data["session"])
 		self._sessions.add(self.session)
 		self._callbacks.call("identity")
@@ -382,6 +389,11 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "join-event", error)
+			self.update_sessions()
+			return
+		
 		ses = session.Session.from_data(data)
 		self._sessions.add(ses)
 		self._callbacks.call("join", ses)
@@ -392,6 +404,10 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "network-event", error)
+			return
+		
 		if data["type"] == "partition":
 			self._sessions.remove_on_network_partition(data["server_id"], data["server_era"])
 			self._callbacks.call("sessions")
@@ -400,6 +416,11 @@ class Room():
 		"""
 		TODO
 		"""
+		
+		if error:
+			self._callbacks.call("error", "nick-event", error)
+			self.update_sessions()
+			return
 		
 		ses = self.get_session(data["session_id"])
 		if ses:
@@ -411,6 +432,10 @@ class Room():
 		"""
 		TODO
 		"""
+		
+		if error:
+			self._callbacks.call("error", "edit-message-event", error)
+			return
 		
 		msg = message.Message.from_data(data)
 		if msg:
@@ -428,6 +453,11 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "part-event", error)
+			self.update_sessions()
+			return
+		
 		ses = session.Session.from_data(data)
 		if ses:
 			self._sessions.remove(ses.session_id)
@@ -439,6 +469,10 @@ class Room():
 		"""
 		TODO
 		"""
+		
+		if error:
+			self._callbacks.call("error", "ping-event", error)
+			return
 		
 		self.ping_last = data["time"]
 		self.ping_next = data["next"]
@@ -452,6 +486,10 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "send-event", error)
+			return
+		
 		msg = message.Message.from_data(data)
 		self._callbacks.call("message", msg)
 		
@@ -462,6 +500,11 @@ class Room():
 		"""
 		TODO
 		"""
+		
+		if error:
+			self._callbacks.call("error", "snapshot-event", error)
+			self.stop()
+			return
 		
 		self.set_nick(self.nick)
 		
@@ -489,6 +532,11 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "auth-reply", error)
+			self.stop()
+			return
+		
 		if not data["success"]:
 			self._con.stop()
 	
@@ -496,6 +544,10 @@ class Room():
 		"""
 		TODO
 		"""
+		
+		if error:
+			self._callbacks.call("error", "get-message-reply", error)
+			return
 		
 		self._messages.add_from_data(data)
 		self._callbacks.call("messages")
@@ -505,6 +557,10 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "log-reply", error)
+			return
+		
 		for msgdata in data["log"]:
 			self._messages.add_from_data(msgdata)
 		self._callbacks.call("messages")
@@ -513,6 +569,10 @@ class Room():
 		"""
 		TODO
 		"""
+		
+		if error:
+			self._callbacks.call("error", "nick-reply", error)
+			return
 		
 		if "to" in data:
 			self.session.name = self.nick
@@ -528,6 +588,10 @@ class Room():
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "send-reply", error)
+			return
+		
 		self._messages.add_from_data(data)
 		self._callbacks.call("messages")
 	
@@ -535,6 +599,10 @@ class Room():
 		"""
 		TODO
 		"""
+		
+		if error:
+			self._callbacks.call("error", "who-reply", error)
+			return
 		
 		self._sessions.remove_all()
 		for sesdata in data["listing"]:

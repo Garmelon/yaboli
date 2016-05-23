@@ -189,10 +189,15 @@ class Connection():
 		else:
 			data = None
 		
-		self._callbacks.call(packet["type"], data)
+		if "error" in packet:
+			error = packet["error"]
+		else:
+			error = None
+		
+		self._callbacks.call(packet["type"], data, error)
 		
 		if "id" in packet:
-			self._id_callbacks.call(packet["id"], data)
+			self._id_callbacks.call(packet["id"], data, error)
 			self._id_callbacks.remove(packet["id"])
 	
 	def _send_json(self, data):
