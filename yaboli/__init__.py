@@ -1,3 +1,5 @@
+from .bot import Bot
+from .botmanager import BotManager
 from .callbacks import Callbacks
 from .connection import Connection
 from .exceptions import *
