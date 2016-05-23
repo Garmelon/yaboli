@@ -59,7 +59,7 @@ class Session():
 		Converts the name to a mentionable format.
 		"""
 		
-		return "".join(c for c in self.name if not c in ",.!?;&<'\"" and not c.isspace())
+		return "".join(c for c in self.name if not c in ",.!?;&<'\"" and not c.isspace()).lower()
 	
 	def listable(self, width):
 		"""
