@@ -351,22 +351,30 @@ class Room():
 		"""
 		TODO
 		"""
+		
 		if error:
+			self._callbacks.call("error", "bounce-event", error)
 			self.stop()
+			return
 		
 		if self.password is not None:
 			self.authenticate(self.password)
 		else:
 			self.stop()
 	
-	def _handle_disconnect_event(self, data):
+	def _handle_disconnect_event(self, data, error):
 		"""
 		TODO
 		"""
 		
+		if error:
+			self._callbacks.call("error", "disconnect-event", error)
+			self.stop()
+			return
+		
 		self._con.disconnect()
 	
-	def _handle_hello_event(self, data):
+	def _handle_hello_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -384,7 +392,7 @@ class Room():
 		self.room_is_private = data["room_is_private"]
 		self._callbacks.call("room")
 	
-	def _handle_join_event(self, data):
+	def _handle_join_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -399,7 +407,7 @@ class Room():
 		self._callbacks.call("join", ses)
 		self._callbacks.call("sessions")
 	
-	def _handle_network_event(self, data):
+	def _handle_network_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -412,7 +420,7 @@ class Room():
 			self._sessions.remove_on_network_partition(data["server_id"], data["server_era"])
 			self._callbacks.call("sessions")
 	
-	def _handle_nick_event(self, data):
+	def _handle_nick_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -428,7 +436,7 @@ class Room():
 			self._callbacks.call("nick", ses, data["from"], data["to"])
 			self._callbacks.call("sessions")
 	
-	def _handle_edit_message_event(self, data):
+	def _handle_edit_message_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -448,7 +456,7 @@ class Room():
 			
 			self._callbacks.call("messages")
 	
-	def _handle_part_event(self, data):
+	def _handle_part_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -465,7 +473,7 @@ class Room():
 			self._callbacks.call("part", ses)
 			self._callbacks.call("sessions")
 	
-	def _handle_ping_event(self, data):
+	def _handle_ping_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -481,7 +489,7 @@ class Room():
 		self._con.send_packet("ping-reply", time=self.ping_last)
 		self._callbacks.call("ping")
 	
-	def _handle_send_event(self, data):
+	def _handle_send_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -496,7 +504,7 @@ class Room():
 		self._messages.add(msg)
 		self._callbacks.call("messages")
 	
-	def _handle_snapshot_event(self, data):
+	def _handle_snapshot_event(self, data, error):
 		"""
 		TODO
 		"""
@@ -527,7 +535,7 @@ class Room():
 	
 	# ----- HANDLING OF REPLIES -----
 	
-	def _handle_auth_reply(self, data):
+	def _handle_auth_reply(self, data, error):
 		"""
 		TODO
 		"""
@@ -540,7 +548,7 @@ class Room():
 		if not data["success"]:
 			self._con.stop()
 	
-	def _handle_get_message_reply(self, data):
+	def _handle_get_message_reply(self, data, error):
 		"""
 		TODO
 		"""
@@ -552,7 +560,7 @@ class Room():
 		self._messages.add_from_data(data)
 		self._callbacks.call("messages")
 	
-	def _handle_log_reply(self, data):
+	def _handle_log_reply(self, data, error):
 		"""
 		TODO
 		"""
@@ -565,7 +573,7 @@ class Room():
 			self._messages.add_from_data(msgdata)
 		self._callbacks.call("messages")
 	
-	def _handle_nick_reply(self, data):
+	def _handle_nick_reply(self, data, error):
 		"""
 		TODO
 		"""
@@ -583,7 +591,7 @@ class Room():
 			else:
 				self.nick = data["to"]
 	
-	def _handle_send_reply(self, data):
+	def _handle_send_reply(self, data, error):
 		"""
 		TODO
 		"""
@@ -595,7 +603,7 @@ class Room():
 		self._messages.add_from_data(data)
 		self._callbacks.call("messages")
 	
-	def _handle_who_reply(self, data):
+	def _handle_who_reply(self, data, error):
 		"""
 		TODO
 		"""
