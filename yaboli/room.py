@@ -354,6 +354,8 @@ class Room():
 		
 		if self.password is not None:
 			self.authenticate(self.password)
+		else:
+			self.stop()
 	
 	def _handle_disconnect_event(self, data):
 		"""
