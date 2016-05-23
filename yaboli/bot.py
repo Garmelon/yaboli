@@ -36,7 +36,7 @@ class Bot():
 		
 		self.commands = callbacks.Callbacks()
 		
-		self.add_command("clone", self.create_command, "Clone this bot to another room.", # possibly add option to set nick?
+		self.add_command("clone", self.clone_command, "Clone this bot to another room.", # possibly add option to set nick?
 		                 ("!clone @bot [ <room> [ --pw=<password> ] ]\n"
 		                  "<room> : the name of the room to clone the bot to\n"
 		                  "--pw : the room's password\n\n"
