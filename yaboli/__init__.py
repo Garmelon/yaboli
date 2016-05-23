@@ -1,5 +1,6 @@
 from .callbacks import Callbacks
 from .connection import Connection
+from .exceptions import *
 from .session import Session
 from .message import Message
 from .sessions import Sessions
