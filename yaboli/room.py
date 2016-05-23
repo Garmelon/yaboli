@@ -254,6 +254,8 @@ class Room():
 		Change your nick.
 		"""
 		
+		self.nick = nick
+		
 		self._con.add_next_callback(self._handle_nick_reply)
 		self._con.send_packet("nick", name=nick)
 	
@@ -511,9 +513,13 @@ class Room():
 		"""
 		
 		if "to" in data:
-			self.nick = data["to"]
 			self.session.name = self.nick
 			self._callbacks.call("identity")
+			
+			if data["to"] != self.nick:
+				self.set_nick(self.nick)
+			else:
+				self.nick = data["to"]
 	
 	def _handle_send_reply(self, data):
 		"""
