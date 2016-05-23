@@ -36,12 +36,14 @@ class Bot():
 		
 		self.commands = callbacks.Callbacks()
 		
-		self.add_command("create", self.create_command, "Create a new bot of this bot's type.", # possibly add option to set nick?
-		                 ("!create @bot [ <room> [ --pw=<password> ] ]\n"
+		self.add_command("clone", self.create_command, "Clone this bot to another room.", # possibly add option to set nick?
+		                 ("!clone @bot [ <room> [ --pw=<password> ] ]\n"
+		                  "<room> : the name of the room to clone the bot to\n"
 		                  "--pw : the room's password\n\n"
-		                  "Create a bot in the room specified, or the current room if no room\n"
-		                  "is specified. If the target room is passworded, you can use the\n"
-		                  "--pw option to set a password for the bot to use."))
+		                  "Clone this bot to the room specified.\n"
+		                  "If the target room is passworded, you can use the --pw option to set\n"
+		                  "a password for the bot to use.\n"
+		                  "If no room is specified, this will use the current room and password."))
 		
 		self.add_command("help", self.help_command, "Show help information about the bot.",
 		                 ("!help @bot [ -s | <command> ]\n"
@@ -382,35 +384,36 @@ class Bot():
 	
 	# ----- COMMANDS -----
 	
-	def create_command(self, message, arguments, flags, options):
+	def clone_command(self, message, arguments, flags, options):
 		"""
-		create_command(message, *arguments, flags, options) -> None
+		clone_command(message, *arguments, flags, options) -> None
 		
 		Create a new bot.
 		"""
 		
 		if not arguments:
 			room = self.roomname()
+			password = self.room.password
 		else:
 			room = arguments[0]
 			
 			if room[:1] == "&":
 				room = room[1:]
-		
-		if "pw" in options and options["pw"] is not True:
-			password = options["pw"]
-		else:
-			password = None
-		
+			
+			if "pw" in options and options["pw"] is not True:
+				password = options["pw"]
+			else:
+				password = None
+			
 		try:
 			bot = self.manager.create(room, password=password)
 		except exceptions.CreateBotException:
-			self.room.send_message("Bot could not be created.", parent=message.id)
+			self.room.send_message("Bot could not be cloned.", parent=message.id)
 		else:
 			bot.created_in = self.roomname()
 			bot.created_by = self.room.mentionable(message.sender.name)
 			
-			self.room.send_message("Created @{} in &{}.".format(bot.mentionable(), room),
+			self.room.send_message("Cloned @{} to &{}.".format(bot.mentionable(), room),
 			                       parent=message.id)
 	
 	def help_command(self, message, arguments, flags, options):
