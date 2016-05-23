@@ -74,6 +74,15 @@ class Sessions():
 		
 		self._sessions = {}
 	
+	def get_all(self):
+		"""
+		get_all() -> list
+		
+		Returns the full list of sessions.
+		"""
+		
+		return [ses for sid, ses in self._sessions.items()]
+	
 	def get_people(self):
 		"""
 		get_people() -> list
@@ -85,7 +94,7 @@ class Sessions():
 		people = []
 		for sid in self._sessions:
 			ses = self.get(sid)
-			if ses.session_type in ["agent", "account"] and ses.name:
+			if ses.session_type() in ["agent", "account"] and ses.name:
 				people.append(ses)
 		return people
 	

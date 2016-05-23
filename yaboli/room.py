@@ -193,6 +193,15 @@ class Room():
 		
 		return self._sessions.get(sid)
 	
+	def get_sessions(self):
+		"""
+		get_sessions() -> list
+		
+		Returns the full list of sessions.
+		"""
+		
+		return self._sessions.get_all()
+	
 	def get_people(self):
 		"""
 		get_people() -> list
