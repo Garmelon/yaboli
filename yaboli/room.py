@@ -24,9 +24,10 @@ class Room():
 	ping                         - ping event has happened
 	room                         - room info has changed
 	sessions                     - session data has changed
+	change                       - room has been changed
 	"""
 	
-	def __init__(self, room, nick=None, password=None, message_limit=500):
+	def __init__(self, room=None, nick=None, password=None, message_limit=500):
 		"""
 		room          - name of the room to connect to
 		nick          - nick to assume, None -> no nick
@@ -36,21 +37,73 @@ class Room():
 		"""
 		
 		self.room = room
-		self.room_is_private = None
 		self.password = password
+		self.room_is_private = None
 		self.pm_with_nick = None
 		self.pm_with_user = None
 		
 		self.nick = nick
+		self.session = None
+		self.message_limit = message_limit
+		
+		self.ping_last = 0
+		self.ping_next = 0
+		self.ping_offset = 0 # difference between server and local time
+		
+		self._messages = None
+		self._sessions = None
+		
+		self._callbacks = callbacks.Callbacks()
+		
+		self._con = None
+		
+		if self.room:
+			self.change(self.room, password=self.password)
+	
+	def launch(self):
+		"""
+		launch() -> Thread
+		
+		Open connection in a new thread (see connection.Connection.launch).
+		"""
+		
+		return self._con.launch()
+	
+	def stop(self):
+		"""
+		stop() -> None
+		
+		Close connection to room.
+		"""
+		
+		self._con.stop()
+	
+	def change(self, room, password=None):
+		"""
+		change(room) -> None
+		
+		Leave current room (if already connected) and join new room.
+		Clears all messages and sessions.
+		A call to launch() is necessary to start a new thread again.
+		"""
+		
+		if self._con:
+			self._con.stop()
+		
+		self.room = room
+		self.password = password
+		self.room_is_private = None
+		self.pm_with_nick = None
+		self.pm_with_user = None
+		
 		self.session = None
 		
 		self.ping_last = 0
 		self.ping_next = 0
 		self.ping_offset = 0 # difference between server and local time
 		
-		self._messages = messages.Messages(message_limit=message_limit)
+		self._messages = messages.Messages(message_limit=self.message_limit)
 		self._sessions = sessions.Sessions()
-		self._callbacks = callbacks.Callbacks()
 		
 		self._con = connection.Connection(self.room)
 		
@@ -65,15 +118,17 @@ class Room():
 		self._con.add_callback("ping-event",         self._handle_ping_event)
 		self._con.add_callback("send-event",         self._handle_send_event)
 		self._con.add_callback("snapshot-event",     self._handle_snapshot_event)
+		
+		self._callbacks.call("change")
 	
-	def launch(self):
+	def add_callback(self, event, callback, *args, **kwargs):
 		"""
-		launch() -> Thread
+		add_callback(ptype, callback, *args, **kwargs) -> None
 		
-		Open connection in a new thread (see connection.Connection.launch).
+		Add a function to be called when a packet of type ptype is received.
 		"""
 		
-		return self._con.launch()
+		self._callbacks.add(event, callback, *args, **kwargs)
 	
 	def get_msg(self, mid):
 		"""
@@ -193,9 +248,9 @@ class Room():
 		self._con.add_next_callback(self._handle_nick_reply)
 		self._con.send_packet("nick", name=nick)
 	
-	def send_msg(self, content, parent=None):
+	def send_message(self, content, parent=None):
 		"""
-		send_msg(content, parent) -> None
+		send_message(content, parent) -> None
 		
 		Send a message.
 		"""
@@ -463,9 +518,10 @@ class Room():
 		
 		print("NICK-REPLY")
 		
-		self.nick = data["to"]
-		self.session.name = self.nick
-		self._callbacks.call("identity")
+		if "to" in data:
+			self.nick = data["to"]
+			self.session.name = self.nick
+			self._callbacks.call("identity")
 	
 	def _handle_send_reply(self, data):
 		"""
