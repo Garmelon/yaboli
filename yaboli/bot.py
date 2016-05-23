@@ -115,12 +115,10 @@ class Bot():
 					       "please specify its id (from the list below) as follows:\n"
 					       "!{} <id> @{} [your arguments...]\n").format(command, name)
 					
-					print("constructing table")
 					for bot_id in sorted(bots):
 						bot = bots[bot_id]
 						msg += "\n{} - @{} ({})".format(bot_id, bot.get_nick(), bot.creation_info())
 					
-					print("sending help message")
 					self.room.send_message(msg, parent=message.id)
 			
 				else: # name is unique
@@ -180,8 +178,6 @@ class Bot():
 		Parse the "!command[ bot_id] @botname[ argpart]" part of a command.
 		"""
 		
-		print("PARSING - COMMAND")
-		
 		# command name (!command)
 		split = message.split(maxsplit=1)
 		
@@ -226,8 +222,6 @@ class Bot():
 		
 		Parse the argument part of a command.
 		"""
-		
-		print("PARSING - ARGPART")
 		
 		argstr += " " # so the last argument will also be captured
 		
@@ -305,8 +299,6 @@ class Bot():
 		
 		Parse a message.
 		"""
-		
-		print("PARSING")
 		
 		command, bot_id, name, argpart = self.parse_command(message)
 		

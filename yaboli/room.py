@@ -328,8 +328,6 @@ class Room():
 		TODO
 		"""
 		
-		print("BOUNCE-EVENT")
-		
 		if self.password is not None:
 			self.authenticate(self.password)
 	
@@ -338,16 +336,12 @@ class Room():
 		TODO
 		"""
 		
-		print("DISCONNECT-EVENT")
-		
 		self._con.disconnect()
 	
 	def _handle_hello_event(self, data):
 		"""
 		TODO
 		"""
-		
-		print("HELLO-EVENT")
 		
 		self.session = session.Session.from_data(data["session"])
 		self._sessions.add(self.session)
@@ -362,8 +356,6 @@ class Room():
 		TODO
 		"""
 		
-		print("JOIN-EVENT")
-		
 		ses = session.Session.from_data(data)
 		self._sessions.add(ses)
 		self._callbacks.call("join", ses)
@@ -374,8 +366,6 @@ class Room():
 		TODO
 		"""
 		
-		print("NETWORK-EVENT")
-		
 		if data["type"] == "partition":
 			self._sessions.remove_on_network_partition(data["server_id"], data["server_era"])
 			self._callbacks.call("sessions")
@@ -384,8 +374,6 @@ class Room():
 		"""
 		TODO
 		"""
-		
-		print("NICK-EVENT")
 		
 		ses = self.get_session(data["session_id"])
 		if ses:
@@ -397,8 +385,6 @@ class Room():
 		"""
 		TODO
 		"""
-		
-		print("EDIT-MESSAGE-EVENT")
 		
 		msg = message.Message.from_data(data)
 		if msg:
@@ -416,8 +402,6 @@ class Room():
 		TODO
 		"""
 		
-		print("PART-EVENT")
-		
 		ses = session.Session.from_data(data)
 		if ses:
 			self._sessions.remove(ses.session_id)
@@ -429,8 +413,6 @@ class Room():
 		"""
 		TODO
 		"""
-		
-		print("PING-EVENT")
 		
 		self.ping_last = data["time"]
 		self.ping_next = data["next"]
@@ -444,8 +426,6 @@ class Room():
 		TODO
 		"""
 		
-		print("SEND-EVENT")
-		
 		msg = message.Message.from_data(data)
 		self._callbacks.call("message", msg)
 		
@@ -456,8 +436,6 @@ class Room():
 		"""
 		TODO
 		"""
-		
-		print("SNAPSHOT-EVENT")
 		
 		self.set_nick(self.nick)
 		
@@ -485,8 +463,6 @@ class Room():
 		TODO
 		"""
 		
-		print("AUTH-REPLY")
-		
 		if not data["success"]:
 			self._con.stop()
 	
@@ -494,8 +470,6 @@ class Room():
 		"""
 		TODO
 		"""
-		
-		print("GET-MESSAGE-REPLY")
 		
 		self._messages.add_from_data(data)
 		self._callbacks.call("messages")
@@ -505,8 +479,6 @@ class Room():
 		TODO
 		"""
 		
-		print("LOG-REPLY")
-		
 		for msgdata in data["log"]:
 			self._messages.add_from_data(msgdata)
 		self._callbacks.call("messages")
@@ -515,8 +487,6 @@ class Room():
 		"""
 		TODO
 		"""
-		
-		print("NICK-REPLY")
 		
 		if "to" in data:
 			self.nick = data["to"]
@@ -528,8 +498,6 @@ class Room():
 		TODO
 		"""
 		
-		print("SEND-REPLY")
-		
 		self._messages.add_from_data(data)
 		self._callbacks.call("messages")
 	
@@ -537,8 +505,6 @@ class Room():
 		"""
 		TODO
 		"""
-		
-		print("WHO-REPLY")
 		
 		self._sessions.remove_all()
 		for sesdata in data["listing"]:
