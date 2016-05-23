@@ -51,3 +51,12 @@ class Callbacks():
 				kwargs = c_info["kwargs"]
 				
 				c(*args, **kwargs)
+	
+	def exists(self, event):
+		"""
+		exists(event) -> bool
+		
+		Are any functions subscribed to this event?
+		"""
+		
+		return event in self._callbacks
