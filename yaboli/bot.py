@@ -1,8 +1,8 @@
-from . import callbacks
 import time
 
-from . import room
+from . import callbacks
 from . import exceptions
+from . import room
 
 class Bot():
 	"""
@@ -24,6 +24,10 @@ class Bot():
 		
 		self.manager = manager
 		
+		# modify/customize this in your __init__() function (or anywhere else you want, for that matter)
+		self.bot_description = ("This bot complies with the botrulez™ (https://github.com/jedevc/botrulez),\n"
+		                        "plus a few extra commands.")
+		
 		self.helptexts = {}
 		self.detailed_helptexts = {}
 		
@@ -31,22 +35,48 @@ class Bot():
 		self.room.add_callback("message", self.on_message)
 		
 		self.commands = callbacks.Callbacks()
-		#self.commands.add("create", create_command)
-		#self.commands.add("kill",     kill_command)
-		#self.commands.add("send",     send_command)
-		#self.commands.add("uptime", uptime_command)
 		
-		self.add_command("help", self.help_command, "Shows help information about the bot.",
+		self.add_command("create", self.create_command, "Create a new bot of this bot's type.", # possibly add option to set nick?
+		                 ("!create @bot [ <room> [ --pw=<password> ] ]\n"
+		                  "--pw : the room's password\n\n"
+		                  "Create a bot in the room specified, or the current room if no room\n"
+		                  "is specified. If the target room is passworded, you can use the\n"
+		                  "--pw option to set a password for the bot to use."))
+		
+		self.add_command("help", self.help_command, "Show help information about the bot.",
 		                 ("!help @bot [ -s | <command> ]\n"
 		                  "-s : general syntax help\n\n"
 		                  "Shows detailed help for a command if you specify a command name.\n"
 		                  "Shows a list of commands and short description if no arguments are given."))
+		
+		self.add_command("kill", self.kill_command, "Kill (stop) the bot.",
+		                 ("!kill @bot [ -r ]\n"
+		                  "-r : restart the bot (will change the id)\n\n"
+		                  "The bot disconnects from the room and stops."))
 		
 		self.add_command("ping", self.ping_command, "Replies 'Pong!'.",
 		                 ("!ping @bot\n\n"
 		                  "This command was originally used to help distinguish bots from\n"
 		                  "people. Since the Great UI Change, this is no longer necessary as\n"
 		                  "bots and people are displayed separately."))
+		
+		self.add_command("restart", self.restart_command, "Restart the bot (shorthand for !kill -r).",
+		                 ("!restart @bot\n\n"
+		                  "Restart the bot.\n"
+		                  "Short for !kill @bot -r"))
+		
+		self.add_command("send", self.send_command, "Send the bot to another room.",
+		                 ("!send @bot <room> [ --pw=<password> ]\n"
+		                  "--pw : the room's password\n\n"
+		                  "Sends this bot to the room specified. If the target room is passworded,\n"
+		                  "you can use the --pw option to set a password for the bot to use."))
+		
+		self.add_command("uptime", self.uptime_command, "Show bot uptime since last (re-)start.",
+		                 ("!uptime @bot [ -i ]\n"
+		                  "-i : show more detailed information\n\n"
+		                  "Shows the bot's uptime since the last start or restart.\n"
+		                  "Shows additional information (i.e. id) if the -i flag is set."))
+		
 		
 		self.add_command("show", self.show_command, detailed_helptext="You've found a hidden command! :)")
 		
@@ -98,7 +128,7 @@ class Bot():
 		if not self.commands.exists(command):
 			return
 		
-		if not name == self.room.session.mentionable():
+		if not name == self.mentionable():
 			return
 		
 		if bot_id is not None: # id specified
@@ -108,8 +138,8 @@ class Bot():
 				return
 		
 		else: # no id specified
-			bots = self.manager.get_similar(self.get_room(), name)
-			if self.manager.get_id(self) == min(bots):
+			bots = self.manager.get_similar(self.roomname(), name)
+			if self.manager.get_id(self) == min(bots): # only one bot should display the messages
 				if len(bots) > 1:
 					msg = ("There are multiple bots with that name in this room. To select one,\n"
 					       "please specify its id (from the list below) as follows:\n"
@@ -117,41 +147,39 @@ class Bot():
 					
 					for bot_id in sorted(bots):
 						bot = bots[bot_id]
-						msg += "\n{} - @{} ({})".format(bot_id, bot.get_nick(), bot.creation_info())
+						msg += "\n{} - @{} ({})".format(bot_id, bot.nick(), bot.creation_info())
 					
 					self.room.send_message(msg, parent=message.id)
 			
 				else: # name is unique
 					self.commands.call(command, message, arguments, flags, options)
 	
-	def get_room(self):
+	def roomname(self):
 		"""
-		get_room() -> roomname
+		roomname() -> roomname
 		
 		The room the bot is connected to.
 		"""
 		
 		return self.room.room
 	
-	def get_mentionable_nick(self):
+	def nick(self):
 		"""
-		get_mentionable_nick() -> nick
+		nick() -> nick
 		
-		The The bot's nick in a mentionable format.
+		The bot's full nick.
 		"""
 		
-		if self.room.session:
-			return self.room.session.mentionable()
+		return self.room.nick
 	
-	def get_nick(self):
+	def mentionable(self):
 		"""
-		get_nick() -> nick
+		mentionable() -> nick
 		
-		The bot's nick.
+		The bot's nick in a mentionable format.
 		"""
 		
-		if self.room.session:
-			return self.room.session.name
+		return self.room.mentionable()
 	
 	def creation_info(self):
 		"""
@@ -161,7 +189,7 @@ class Bot():
 		"""
 		
 		ftime = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(self.start_time))
-		info = "created at {}".format(ftime)
+		info = "created {}".format(ftime)
 		
 		if self.created_by:
 			info += " by @{}".format(self.created_by)
@@ -170,6 +198,32 @@ class Bot():
 			info += " in &{}".format(self.created_in)
 		
 		return info
+	
+	def uptime(self):
+		"""
+		uptime() -> str
+		
+		Formatted uptime
+		"""
+		
+		delta = int(time.time() - self.start_time)
+		uptime = ""
+		
+		if delta >= 24*60*60:
+			uptime +="{}d ".format(delta//24*60*60)
+			delta %= 24*60*60
+			
+		if delta >= 60*60:
+			uptime += "{}h ".format(delta//60*60)
+			delta %= 60*60
+		
+		if delta >= 60:
+			uptime += "{}m ".format(delta//60)
+			delta %= 60
+		
+		uptime += "{}s".format(delta)
+		
+		return uptime
 	
 	def parse_command(self, message):
 		"""
@@ -326,6 +380,37 @@ class Bot():
 	
 	# ----- COMMANDS -----
 	
+	def create_command(self, message, arguments, flags, options):
+		"""
+		create_command(message, *arguments, flags, options) -> None
+		
+		Create a new bot.
+		"""
+		
+		if not arguments:
+			room = self.roomname()
+		else:
+			room = arguments[0]
+			
+			if room[:1] == "&":
+				room = room[1:]
+		
+		if "pw" in options and options["pw"] is not True:
+			password = options["pw"]
+		else:
+			password = None
+		
+		try:
+			bot = self.manager.create(room, password=password)
+		except exceptions.CreateBotException:
+			self.room.send_message("Bot could not be created.", parent=message.id)
+		else:
+			bot.created_in = self.roomname()
+			bot.created_by = message.mentionable()
+			
+			self.room.send_message("Created @{} in &{}.".format(bot.mentionable(), room),
+			                       parent=message.id)
+	
 	def help_command(self, message, arguments, flags, options):
 		"""
 		help_command(message, *arguments, flags, options) -> None
@@ -333,10 +418,7 @@ class Bot():
 		Show help about the bot.
 		"""
 		
-		if "s" in flags: # detailed syntax help
-			msg = "SYNTAX HELP PLACEHOLDER"
-		
-		elif arguments: # detailed help for one command
+		if arguments: # detailed help for one command
 			command = arguments[0]
 			if command[:1] == "!":
 				command = command[1:]
@@ -348,19 +430,38 @@ class Bot():
 				if command in self.helptexts:
 					msg += "\n\n" + self.helptexts[command]
 		
+		elif "s" in flags: # detailed syntax help
+			msg = "SYNTAX HELP PLACEHOLDER"
+		
 		else: # just list all commands
-			msg = "This bot supports the following commands:\n"
+			msg = self.bot_description
+			msg += "\n\nThis bot supports the following commands:"
 			
 			for command in sorted(self.helptexts):
 				helptext = self.helptexts[command]
 				msg += "\n!{} - {}".format(command, helptext)
 			
-			msg += ("\n\nFor detailed help on the command syntax, try:\n"
-			        "!help @{0} -s\n"
-			        "For detailed help on a command, try:\n"
-			        "!help {0} <command>").format(self.get_mentionable_nick())
+			msg += ("\n\nFor help on the command syntax, try: !help @{0} -s\n"
+			        "For detailed help on a command, try: !help {0} <command>")
+			msg = msg.format(self.mentionable())
 		
 		self.room.send_message(msg, parent=message.id)
+	
+	def kill_command(self, message, arguments, flags, options):
+		"""
+		kill_command(message, *arguments, flags, options) -> None
+		
+		stop the bot.
+		"""
+		
+		if "r" in flags:
+			bot = self.manager.create(self.roomname())
+			bot.created_by = self.created_by
+			bot.created_in = self.created_in
+		
+		self.room.send_message("/me exits.", message.id)
+		
+		self.manager.remove(self.manager.get_id(self))
 	
 	def ping_command(self, message, arguments, flags, options):
 		"""
@@ -371,6 +472,40 @@ class Bot():
 		
 		self.room.send_message("Pong!", parent=message.id)
 	
+	def restart_command(self, message, arguments, flags, options):
+		"""
+		restart_command(message, *arguments, flags, options) -> None
+		
+		Restart the bot (shorthand for !kill @bot -r).
+		"""
+		
+		self.commands.call("kill", message, [], "r", {})
+	
+	def send_command(self, message, arguments, flags, options):
+		"""
+		_command(message, *arguments, flags, options) -> None
+		
+		Send this bot to another room.
+		"""
+		
+		if not arguments:
+			return
+		else:
+			room = arguments[0]
+			
+			if room[:1] == "&":
+				room = room[1:]
+		
+		if "pw" in options and options["pw"] is not True:
+			password = options["pw"]
+		else:
+			password = None
+		
+		self.room.send_message("/me moves to &{}.".format(room), parent=message.id)
+		
+		self.room.change(room, password=password)
+		self.room.launch()
+	
 	def show_command(self, message, arguments, flags, options):
 		"""
 		show_command(message, arguments, flags, options) -> None
@@ -380,3 +515,18 @@ class Bot():
 		
 		msg = "arguments: {}\nflags: {}\noptions: {}".format(arguments, repr(flags), options)
 		self.room.send_message(msg, parent=message.id)
+	
+	def uptime_command(self, message, arguments, flags, options):
+		"""
+		uptime_command(message, arguments, flags, options) -> None
+		
+		Show uptime and other info.
+		"""
+		
+		msg = "uptime: {}".format(self.uptime())
+		
+		if "i" in flags:
+			msg += "\nid: {}".format(self.manager.get_id(self))
+			msg += "\n{}".format(self.creation_info())
+		
+		self.room.send_message(msg, message.id)
