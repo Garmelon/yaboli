@@ -109,9 +109,9 @@ class Connection():
 		while not self._stopping:
 			try:
 				self._handle_json(self._ws.recv())
-			except (WSException, OSError, ValueError):
+			except WSException:
 				if not self._stopping:
-					self._disconnect()
+					self.disconnect()
 					self._connect()
 	
 	def stop(self):
@@ -119,19 +119,13 @@ class Connection():
 		stop() -> None
 		
 		Close the connection to the room.
+		Joins the thread launched by self.launch().
 		"""
 		
 		self._stopping = True
-		self._disconnect()
+		self.disconnect()
 		
 		self._callbacks.call("stop")
-	
-	def join(self):
-		"""
-		join() -> None
-		
-		Join the thread spawned by launch.
-		"""
 		
 		if self._thread:
 			self._thread.join()
@@ -211,7 +205,7 @@ class Connection():
 			try:
 				self._ws.send(json.dumps(data))
 			except WSException:
-				self._disconnect()
+				self.disconnect()
 	
 	def send_packet(self, ptype, **kwargs):
 		"""
