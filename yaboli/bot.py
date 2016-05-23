@@ -128,8 +128,10 @@ class Bot():
 		if not self.commands.exists(command):
 			return
 		
-		if not name == self.mentionable():
+		if not name == self.mentionable().lower():
 			return
+		
+		name = self.room.mentionable(name).lower()
 		
 		if bot_id is not None: # id specified
 			if self.manager.get(bot_id) == self:
