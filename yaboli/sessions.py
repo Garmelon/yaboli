@@ -40,15 +40,15 @@ class Sessions():
 		
 		return self._sessions[sid]
 	
-	def remove(self, ses):
+	def remove(self, sid):
 		"""
 		remove(session) -> None
 		
 		Remove a session.
 		"""
 		
-		if ses.session_id in self._sessions:
-			self._sessions.pop(ses.session_id)
+		if sid in self._sessions:
+			self._sessions.pop(sid)
 	
 	def remove_on_network_partition(self, server_id, server_era):
 		"""
