@@ -256,8 +256,9 @@ class Room():
 		
 		self.nick = nick
 		
-		self._con.add_next_callback(self._handle_nick_reply)
-		self._con.send_packet("nick", name=nick)
+		if not self.session or self.session.name != self.nick:
+			self._con.add_next_callback(self._handle_nick_reply)
+			self._con.send_packet("nick", name=nick)
 	
 	def mentionable(self, nick=None):
 		"""
