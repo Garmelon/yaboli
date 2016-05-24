@@ -187,6 +187,15 @@ class Bot():
 		
 		return self.room.room
 	
+	def password(self):
+		"""
+		password() -> password
+		
+		The current room's password.
+		"""
+		
+		return self.room.password
+	
 	def nick(self):
 		"""
 		nick() -> nick
