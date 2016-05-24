@@ -35,6 +35,7 @@ class Bot():
 		self.room.add_callback("message", self.on_message)
 		
 		self.commands = callbacks.Callbacks()
+		self.bot_specific_commands = []
 		
 		self.add_command("clone", self.clone_command, "Clone this bot to another room.", # possibly add option to set nick?
 		                 ("!clone @bot [ <room> [ --pw=<password> ] ]\n"
@@ -43,7 +44,8 @@ class Bot():
 		                  "Clone this bot to the room specified.\n"
 		                  "If the target room is passworded, you can use the --pw option to set\n"
 		                  "a password for the bot to use.\n"
-		                  "If no room is specified, this will use the current room and password."))
+		                  "If no room is specified, this will use the current room and password."),
+		                 bot_specific=False)
 		
 		self.add_command("help", self.help_command, "Show help information about the bot.",
 		                 ("!help @bot [ -s | <command> ]\n"
@@ -74,7 +76,7 @@ class Bot():
 		                  "you can use the --pw option to set a password for the bot to use."))
 		
 		self.add_command("uptime", self.uptime_command, "Show bot uptime since last (re-)start.",
-		                 ("!uptime @bot [ -i ]\n"
+		                 ("!uptime @bot [ -i s]\n"
 		                  "-i : show more detailed information\n\n"
 		                  "Shows the bot's uptime since the last start or restart.\n"
 		                  "Shows additional information (i.e. id) if the -i flag is set."))
@@ -93,26 +95,41 @@ class Bot():
 		
 		self.room.stop()
 	
-	def add_command(self, command, function, helptext=None, detailed_helptext=None):
+	def add_command(self, command, function, helptext=None, detailed_helptext=None,
+	                bot_specific=True):
 		"""
-		add_command(command, function, helptext, detailed_helptext) -> None
+		add_command(command, function, helptext, detailed_helptext, bot_specific) -> None
 		
 		Subscribe a function to a command and add a help text.
 		If no help text is provided, the command won't be displayed by the !help command.
+		This overwrites any previously added command.
 		
 		You can "hide" commands by specifying only the detailed helptext,
 		or no helptext at all.
+		
+		If the command is not bot specific, no id has to be specified if there are multiple bots
+		with the same name in a room.
 		"""
 		
 		command = command.lower()
 		
+		self.commands.remove(command)
 		self.commands.add(command, function)
 		
-		if helptext:
+		if helptext and not command in self.helptexts:
 			self.helptexts[command] = helptext
+		elif not helptext and command in self.helptexts:
+			self.helptexts.pop(command)
 		
-		if detailed_helptext:
+		if detailed_helptext and not command in self.detailed_helptexts:
 			self.detailed_helptexts[command] = detailed_helptext
+		elif not detailed_helptext and command in self.detailed_helptexts:
+			self.detailed_helptexts.pop(command)
+		
+		if bot_specific and not command in self.bot_specific_commands:
+			self.bot_specific_commands.append(command)
+		elif not bot_specific and command in self.bot_specific_commands:
+			self.bot_specific_commands.remove(command)
 	
 	def call_command(self, message):
 		"""
@@ -143,8 +160,12 @@ class Bot():
 		
 		else: # no id specified
 			bots = self.manager.get_similar(self.roomname(), name)
-			if self.manager.get_id(self) == min(bots): # only one bot should display the messages
-				if len(bots) > 1:
+			if self.manager.get_id(self) == min(bots): # only one bot should act
+				# either the bot is unique or the command is not bot-specific
+				if not command in self.bot_specific_commands or len(bots) == 1:
+					self.commands.call(command, message, arguments, flags, options)
+				
+				else: # user has to select a bot
 					msg = ("There are multiple bots with that name in this room. To select one,\n"
 					       "please specify its id (from the list below) as follows:\n"
 					       "!{} <id> @{} [your arguments...]\n").format(command, name)
@@ -154,9 +175,6 @@ class Bot():
 						msg += "\n{} - @{} ({})".format(bot_id, bot.nick(), bot.creation_info())
 					
 					self.room.send_message(msg, parent=message.id)
-			
-				else: # name is unique
-					self.commands.call(command, message, arguments, flags, options)
 	
 	def roomname(self):
 		"""
