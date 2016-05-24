@@ -215,7 +215,7 @@ class Bot():
 		info = "created {}".format(self.format_date())
 		
 		if self.created_by:
-			info += " by @{}".format(self.created_by)
+			info += " by @{}".format(self.room.mentionable(self.created_by))
 		
 		if self.created_in:
 			info += " in &{}".format(self.created_in)
@@ -452,7 +452,7 @@ class Bot():
 			self.room.send_message("Bot could not be cloned.", parent=message.id)
 		else:
 			bot.created_in = self.roomname()
-			bot.created_by = self.room.mentionable(message.sender.name)
+			bot.created_by = message.sender.name
 			
 			self.room.send_message("Cloned @{} to &{}.".format(bot.mentionable(), room),
 			                       parent=message.id)
