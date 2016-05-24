@@ -225,8 +225,9 @@ class Bot():
 		"""
 		
 		if not delta:
-			delta = int(time.time() - self.start_time)
+			delta = time.time() - self.start_time
 		
+		delta = int(delta)
 		uptime = ""
 		
 		if delta < 0:
