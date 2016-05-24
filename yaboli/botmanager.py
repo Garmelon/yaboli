@@ -48,7 +48,7 @@ class BotManager():
 			raise exceptions.CreateBotException("max_bots limit hit")
 		else:
 			bot = self.bot_class(room, nick=nick, password=password, manager=self,
-			                     created_in=None, created_by=None)
+			                     created_in=created_in, created_by=created_by)
 			self._bots[self._bot_id] = bot
 			self._bot_id += 1
 			
