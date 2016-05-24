@@ -48,8 +48,10 @@ class Bot():
 		                 bot_specific=False)
 		
 		self.add_command("help", self.help_command, "Show help information about the bot.",
-		                 ("!help @bot [ -s | <command> ]\n"
-		                  "-s : general syntax help\n\n"
+		                 ("!help @bot [ -s | -c | <command> ]\n"
+		                  "-s : general syntax help\n"
+		                  "-c : only list the commands\n"
+		                  "<command> : any command from !help @bot -c\n\n"
 		                  "Shows detailed help for a command if you specify a command name.\n"
 		                  "Shows a list of commands and short description if no arguments are given."))
 		
@@ -64,7 +66,7 @@ class Bot():
 		                  "people. Since the Great UI Change, this is no longer necessary as\n"
 		                  "bots and people are displayed separately."))
 		
-		self.add_command("restart", self.restart_command, "Restart the bot (shorthand for !kill -r).",
+		self.add_command("restart", self.restart_command, "Restart the bot (shorthand for !kill @bot -r).",
 		                 ("!restart @bot\n\n"
 		                  "Restart the bot.\n"
 		                  "Short for !kill @bot -r"))
@@ -476,19 +478,25 @@ class Bot():
 					msg += "\n\n" + self.helptexts[command]
 		
 		elif "s" in flags: # detailed syntax help
-			msg = "SYNTAX HELP PLACEHOLDER"
+			msg = ("SYNTAX HELP PLACEHOLDER")
 		
 		else: # just list all commands
-			msg = self.bot_description
-			msg += "\n\nThis bot supports the following commands:"
+			msg = ""
 			
+			if not "c" in flags:
+				msg += self.bot_description + "\n\n"
+			
+			msg += "This bot supports the following commands:"
 			for command in sorted(self.helptexts):
 				helptext = self.helptexts[command]
 				msg += "\n!{} - {}".format(command, helptext)
 			
-			msg += ("\n\nFor help on the command syntax, try: !help @{0} -s\n"
-			        "For detailed help on a command, try: !help @{0} <command>")
-			msg = msg.format(self.mentionable())
+			if not "c" in flags:
+				msg += ("\n\nFor help on the command syntax, try: !help @{0} -s\n"
+				        "For detailed help on a command, try: !help @{0} <command>\n"
+				        "(Hint: Most commands have extra functionality, which is\n"
+				        "listed in their detailed help.)")
+				msg = msg.format(self.mentionable())
 		
 		self.room.send_message(msg, parent=message.id)
 	
