@@ -177,7 +177,7 @@ class Bot():
 					
 					for bot_id in sorted(bots):
 						bot = bots[bot_id]
-						msg += "\n{} - @{} ({})".format(bot_id, bot.nick(), bot.creation_info())
+						msg += "\n{} - @{} ({})".format(bot_id, bot.mentionable(), bot.creation_info())
 					
 					self.room.send_message(msg, parent=message.id)
 	
