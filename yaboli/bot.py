@@ -149,6 +149,7 @@ class Bot():
 		except exceptions.ParseMessageException:
 			return
 		else:
+			command = command.lower()
 			nick = self.room.mentionable(nick).lower()
 		
 		if not self.commands.exists(command):
@@ -297,7 +298,7 @@ class Bot():
 		elif not len(split) > 1:
 			raise exceptions.ParseMessageException("No bot nick")
 		
-		command = split[0][1:].lower()
+		command = split[0][1:]
 		message = split[1]
 		split = message.split(maxsplit=1)
 		
@@ -317,7 +318,7 @@ class Bot():
 		if split[0][:1] != "@":
 			raise exceptions.ParseMessageException("No bot nick")
 		
-		nick = split[0][1:].lower()
+		nick = split[0][1:]
 		
 		# arguments to the command
 		if len(split) > 1:
