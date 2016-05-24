@@ -34,7 +34,7 @@ class BotManager():
 		
 		self._load_bots()
 	
-	def create(self, room, password=None, nick=None):
+	def create(self, room, password=None, nick=None, created_in=None, created_by=None):
 		"""
 		create(room, password, nick) -> bot
 		
@@ -47,7 +47,8 @@ class BotManager():
 		if self.max_bots and len(self._bots) >= self.max_bots:
 			raise exceptions.CreateBotException("max_bots limit hit")
 		else:
-			bot = self.bot_class(room, nick=nick, password=password, manager=self)
+			bot = self.bot_class(room, nick=nick, password=password, manager=self,
+			                     created_in=None, created_by=None)
 			self._bots[self._bot_id] = bot
 			self._bot_id += 1
 			

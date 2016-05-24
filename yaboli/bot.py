@@ -10,17 +10,20 @@ class Bot():
 	Takes care of extended botrulez.
 	"""
 	
-	def __init__(self, roomname, nick="yaboli", password=None, manager=None):
+	def __init__(self, roomname, nick="yaboli", password=None, manager=None,
+	             created_in=None, created_by=None):
 		"""
-		roomname - name of the room to connect to
-		nick     - nick to assume, None -> no nick
-		password - room password (in case the room is private)
+		roomname   - name of the room to connect to
+		nick       - nick to assume, None -> no nick
+		password   - room password (in case the room is private)
+		created_in - room the bot was created in
+		created_by - nick of the person the bot was created by
 		"""
 		
 		self.start_time = time.time()
 		
-		self.created_by = None
-		self.created_in = None
+		self.created_by = created_by
+		self.created_in = created_in
 		
 		self.manager = manager
 		
@@ -456,13 +459,11 @@ class Bot():
 				password = None
 			
 		try:
-			bot = self.manager.create(room, password=password)
+			bot = self.manager.create(room, password=password, created_in=self.roomname(),
+			                          created_by=message.sender.name)
 		except exceptions.CreateBotException:
 			self.room.send_message("Bot could not be cloned.", parent=message.id)
 		else:
-			bot.created_in = self.roomname()
-			bot.created_by = message.sender.name
-			
 			self.room.send_message("Cloned @{} to &{}.".format(bot.mentionable(), room),
 			                       parent=message.id)
 	
@@ -503,8 +504,7 @@ class Bot():
 			if not "c" in flags:
 				msg += ("\n\nFor help on the command syntax, try: !help @{0} -s\n"
 				        "For detailed help on a command, try: !help @{0} <command>\n"
-				        "(Hint: Most commands have extra functionality, which is\n"
-				        "listed in their detailed help.)")
+				        "(Hint: Most commands have extra functionality, which is listed in their detailed help.)")
 				msg = msg.format(self.mentionable())
 		
 		self.room.send_message(msg, parent=message.id)
