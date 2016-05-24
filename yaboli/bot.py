@@ -459,7 +459,7 @@ class Bot():
 				password = None
 			
 		try:
-			self.manager.create(room, password=password, created_in=self.roomname(),
+			bot = self.manager.create(room, password=password, created_in=self.roomname(),
 			                          created_by=message.sender.name)
 		except exceptions.CreateBotException:
 			self.room.send_message("Bot could not be cloned.", parent=message.id)
