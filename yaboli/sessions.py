@@ -38,7 +38,8 @@ class Sessions():
 		Returns the session with that id.
 		"""
 		
-		return self._sessions[sid]
+		if sid in self._sessions:
+			return self._sessions[sid]
 	
 	def remove(self, sid):
 		"""
