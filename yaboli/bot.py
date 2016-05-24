@@ -429,7 +429,7 @@ class Bot():
 				command = command[1:]
 			
 			if command in self.detailed_helptexts:
-				msg = "Detailed help for !{}:".format(command)
+				msg = "Detailed help for !{}\n:".format(command)
 				msg += self.detailed_helptexts[command]
 			else:
 				msg = "No detailed help text found for !{}.".format(command)
