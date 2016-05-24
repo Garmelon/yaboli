@@ -214,11 +214,11 @@ class Bot():
 		uptime = ""
 		
 		if delta >= 24*60*60:
-			uptime +="{}d ".format(delta//24*60*60)
+			uptime +="{}d ".format(delta//(24*60*60))
 			delta %= 24*60*60
 			
 		if delta >= 60*60:
-			uptime += "{}h ".format(delta//60*60)
+			uptime += "{}h ".format(delta//(60*60))
 			delta %= 60*60
 		
 		if delta >= 60:
