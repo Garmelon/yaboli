@@ -125,7 +125,7 @@ class Room():
 		"""
 		add_callback(ptype, callback, *args, **kwargs) -> None
 		
-		Add a function to be called when a packet of type ptype is received.
+		Add a function to be called when a certain event happens.
 		"""
 		
 		self._callbacks.add(event, callback, *args, **kwargs)
@@ -259,18 +259,18 @@ class Room():
 		self._con.add_next_callback(self._handle_nick_reply)
 		self._con.send_packet("nick", name=nick)
 	
-	def mentionable(self, name=None):
+	def mentionable(self, nick=None):
 		"""
 		mentionable()
 		
-		A mentionable version of the name.
-		The name defaults to the bot's name.
+		A mentionable version of the nick.
+		The nick defaults to the bot's nick.
 		"""
 		
-		if name is None:
-			name = self.nick
+		if nick is None:
+			nick = self.nick
 		
-		return "".join(c for c in name if not c in ".!?;&<'\"" and not c.isspace())
+		return "".join(c for c in nick if not c in ".!?;&<'\"" and not c.isspace())
 	
 	def send_message(self, content, parent=None):
 		"""
@@ -588,8 +588,6 @@ class Room():
 			
 			if data["to"] != self.nick:
 				self.set_nick(self.nick)
-			else:
-				self.nick = data["to"]
 	
 	def _handle_send_reply(self, data, error):
 		"""

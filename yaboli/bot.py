@@ -110,7 +110,7 @@ class Bot():
 		or no helptext at all.
 		
 		If the command is not bot specific, no id has to be specified if there are multiple bots
-		with the same name in a room.
+		with the same nick in a room.
 		"""
 		
 		command = command.lower()
@@ -138,21 +138,21 @@ class Bot():
 		call_command(message) -> None
 		
 		Calls all functions subscribed to the command with the arguments supplied in the message.
-		Deals with the situation that multiple bots of the same type and name are in the same room.
+		Deals with the situation that multiple bots of the same type and nick are in the same room.
 		"""
 		
 		try:
-			command, bot_id, name, arguments, flags, options = self.parse(message.content)
+			command, bot_id, nick, arguments, flags, options = self.parse(message.content)
 		except exceptions.ParseMessageException:
 			return
+		else:
+			nick = self.room.mentionable(nick).lower()
 		
 		if not self.commands.exists(command):
 			return
 		
-		if not name == self.mentionable().lower():
+		if not nick == self.mentionable().lower():
 			return
-		
-		name = self.room.mentionable(name).lower()
 		
 		if bot_id is not None: # id specified
 			if self.manager.get(bot_id) == self:
@@ -161,16 +161,16 @@ class Bot():
 				return
 		
 		else: # no id specified
-			bots = self.manager.get_similar(self.roomname(), name)
+			bots = self.manager.get_similar(self.roomname(), nick)
 			if self.manager.get_id(self) == min(bots): # only one bot should act
 				# either the bot is unique or the command is not bot-specific
 				if not command in self.bot_specific_commands or len(bots) == 1:
 					self.commands.call(command, message, arguments, flags, options)
 				
 				else: # user has to select a bot
-					msg = ("There are multiple bots with that name in this room. To select one,\n"
+					msg = ("There are multiple bots with that nick in this room. To select one,\n"
 					       "please specify its id (from the list below) as follows:\n"
-					       "!{} <id> @{} [your arguments...]\n").format(command, name)
+					       "!{} <id> @{} [your arguments...]\n").format(command, nick)
 					
 					for bot_id in sorted(bots):
 						bot = bots[bot_id]
@@ -272,7 +272,7 @@ class Bot():
 	
 	def parse_command(self, message):
 		"""
-		parse_command(message_content) -> command, bot_id, name, argpart
+		parse_command(message_content) -> command, bot_id, nick, argpart
 		
 		Parse the "!command[ bot_id] @botname[ argpart]" part of a command.
 		"""
@@ -283,7 +283,7 @@ class Bot():
 		if split[0][:1] != "!":
 			raise exceptions.ParseMessageException("Not a command")
 		elif not len(split) > 1:
-			raise exceptions.ParseMessageException("No bot name")
+			raise exceptions.ParseMessageException("No bot nick")
 		
 		command = split[0][1:].lower()
 		message = split[1]
@@ -296,16 +296,16 @@ class Bot():
 			bot_id = None
 		else:
 			if not len(split) > 1:
-				raise exceptions.ParseMessageException("No bot name")
+				raise exceptions.ParseMessageException("No bot nick")
 			
 			message = split[1]
 			split = message.split(maxsplit=1)
 		
-		# bot name (@mention)
+		# bot nick (@mention)
 		if split[0][:1] != "@":
-			raise exceptions.ParseMessageException("No bot name")
+			raise exceptions.ParseMessageException("No bot nick")
 		
-		name = split[0][1:].lower()
+		nick = split[0][1:].lower()
 		
 		# arguments to the command
 		if len(split) > 1:
@@ -313,7 +313,7 @@ class Bot():
 		else:
 			argpart = None
 		
-		return command, bot_id, name, argpart
+		return command, bot_id, nick, argpart
 	
 	def parse_arguments(self, argstr):
 		"""
@@ -399,7 +399,7 @@ class Bot():
 		Parse a message.
 		"""
 		
-		command, bot_id, name, argpart = self.parse_command(message)
+		command, bot_id, nick, argpart = self.parse_command(message)
 		
 		if argpart:
 			arguments, flags, options = self.parse_arguments(argpart)
@@ -408,7 +408,7 @@ class Bot():
 			flags = ""
 			options = {}
 		
-		return command, bot_id, name, arguments, flags, options
+		return command, bot_id, nick, arguments, flags, options
 	
 	# ----- HANDLING OF EVENTS -----
 	
