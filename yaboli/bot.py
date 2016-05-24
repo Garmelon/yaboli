@@ -192,8 +192,7 @@ class Bot():
 		Formatted info about the bot's creation
 		"""
 		
-		ftime = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(self.start_time))
-		info = "created {}".format(ftime)
+		info = "created {}".format(self.format_date())
 		
 		if self.created_by:
 			info += " by @{}".format(self.created_by)
@@ -203,15 +202,36 @@ class Bot():
 		
 		return info
 	
-	def uptime(self):
+	def format_date(self, seconds=None):
 		"""
-		uptime() -> str
+		format_date(seconds) -> str
 		
-		Formatted uptime
+		Format a time in epoch format to the format specified in self.date_format.
+		Defaults to self.start_time.
 		"""
 		
-		delta = int(time.time() - self.start_time)
+		if seconds is None:
+			seconds = self.start_time
+		
+		return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(seconds))
+	
+	def format_delta(self, delta=None):
+		"""
+		format_delta(delta) -> str
+		
+		Format a difference in seconds to the following format:
+		[- ][<days>d ][<hours>h ][<minutes>m ]<seconds>s
+		Defaults to the current uptime if no delta is specified.
+		"""
+		
+		if not delta:
+			delta = int(time.time() - self.start_time)
+		
 		uptime = ""
+		
+		if delta < 0:
+			uptime += "- "
+			delta = -delta
 		
 		if delta >= 24*60*60:
 			uptime +="{}d ".format(delta//(24*60*60))
@@ -529,10 +549,15 @@ class Bot():
 		Show uptime and other info.
 		"""
 		
-		msg = "uptime: {}".format(self.uptime())
+		stime = self.format_date()
+		utime = self.format_delta()
 		
 		if "i" in flags:
+			msg = "uptime: {} ({})".format(stime, utime)
 			msg += "\nid: {}".format(self.manager.get_id(self))
 			msg += "\n{}".format(self.creation_info())
+		
+		else:
+			msg = "/me is up since {} ({}).".format(stime, utime)
 		
 		self.room.send_message(msg, message.id)
