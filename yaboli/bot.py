@@ -293,10 +293,10 @@ class Bot():
 		# command name (!command)
 		split = message.split(maxsplit=1)
 		
-		if split[0][:1] != "!":
+		if len(split) < 2:
+			raise exceptions.ParseMessageException("Not enough arguments")
+		elif split[0][:1] != "!":
 			raise exceptions.ParseMessageException("Not a command")
-		elif not len(split) > 1:
-			raise exceptions.ParseMessageException("No bot nick")
 		
 		command = split[0][1:]
 		message = split[1]
@@ -308,7 +308,7 @@ class Bot():
 		except ValueError:
 			bot_id = None
 		else:
-			if not len(split) > 1:
+			if len(split) <= 1:
 				raise exceptions.ParseMessageException("No bot nick")
 			
 			message = split[1]
