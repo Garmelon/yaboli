@@ -102,7 +102,7 @@ class Messages():
 		
 		oldest = None
 		for mid in self._by_id:
-			if mid < oldest:
+			if oldest is None or mid < oldest:
 				oldest = mid
 		return self.get(oldest)
 	
@@ -115,7 +115,7 @@ class Messages():
 		
 		youngest = None
 		for mid in self._by_id:
-			if mid > youngest:
+			if youngest is None or mid > youngest:
 				youngest = mid
 		return self.get(youngest)
 	
