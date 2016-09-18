@@ -1,149 +1,160 @@
 import json
+import logging
+logger = logging.getLogger(__name__)
 
-from . import bot
-from . import exceptions
-
-class BotManager():
+class BotManager:
 	"""
 	Keep track of multiple bots in different rooms.
+	Save and load bots from a file.
 	"""
 	
-	def __init__(self, bot_class, default_nick="yaboli", max_bots=100,
-	             bots_file="bots.json", data_file="data.json"):
-		"""
-		bot_class    - class to create instances of
-		default_nick - default nick for all bots to assume when no nick is specified
-		max_bots     - maximum number of bots allowed to exist simultaneously
-		               None or 0 - no limit
-		bots_file    - file the bot backups are saved to
-		               None - no bot backups
-		data_file    - file the bot data is saved to
-		             - None - bot data isn't saved
+	def __init__(self, bot_class, bot_limit=None):
 		"""
 		
+		"""
 		self.bot_class = bot_class
-		self.max_bots = max_bots
-		self.default_nick = default_nick
-		
-		self.bots_file = bots_file
-		self.data_file = data_file
-		
-		self._bots = {}
-		self._bot_id = 0
-		self._bot_data = {}
-		
-		self._load_bots()
+		self.bot_limit = bot_limit
+		self.bot_id_counter = 0 # no two bots can have the same id
+		self.bots = {} # each bot has an unique id
 	
-	def create(self, room, password=None, nick=None, created_in=None, created_by=None):
+	def create(self, name, room, pw=None, creator=None, create_room=None, create_time=None):
 		"""
-		create(room, password, nick) -> bot
+		create(name, room, pw, creator, create_room, create_time) -> bot
 		
-		Create a new bot in room.
+		Create a bot of type self.bot_class.
+		Starts the bot and returns it.
 		"""
 		
-		if nick is None:
-			nick = self.default_nick
+		bot_id = self.bot_id_counter
+		self.bot_id_counter += 1
 		
-		if self.max_bots and len(self._bots) >= self.max_bots:
-			raise exceptions.CreateBotException("max_bots limit hit")
-		else:
-			bot = self.bot_class(room, nick=nick, password=password, manager=self,
-			                     created_in=created_in, created_by=created_by)
-			self._bots[self._bot_id] = bot
-			self._bot_id += 1
-			
-			self._save_bots()
-			
-			return bot
+		bot = self.bot_class(name=name, room=room, pw=pw, creator=creator,
+		                     create_room=create_room, create_time=create_time)
+		
+		self.bots[bot_id] = bot
+		bot.run(self)
+		
+		logger.info("Created {}: {} in room {}".format(bot_id, name, room))
+		return bot
 	
 	def remove(self, bot_id):
 		"""
 		remove(bot_id) -> None
 		
-		Kill a bot and remove it from the list of bots.
+		Remove a bot from the manager and stop it.
 		"""
 		
-		if bot_id in self._bots:
-			self._bots[bot_id].stop()
-			self._bots.pop(bot_id)
-			
-			self._save_bots()
+		bot = self.get(bot_id)
+		if not bot: return
+	
+		# for logging purposes
+		name = bot.get_name()
+		room = bot.get_roomname()
+		
+		bot.stop()
+		del self.bots[bot_id]
+		
+		logger.info("Removed {}: {} in room {}".format(bot_id, name, room))
 	
 	def get(self, bot_id):
 		"""
-		get(self, bot_id) -> bot
+		get(bot_id) -> bot
 		
-		Return bot with that id, if found.
+		Get a bot by its id.
+		Returns None if no bot was found.
 		"""
 		
-		if bot_id in self._bots:
-			return self._bots[bot_id]
+		return self.bots.get(bot_id)
 	
 	def get_id(self, bot):
 		"""
 		get_id(bot) -> bot_id
 		
-		Return the bot id, if the bot is known.
+		Get a bot's id.
+		Returns None if id not found.
 		"""
 		
-		for bot_id, own_bot in self._bots.items():
-			if bot == own_bot:
+		for bot_id, lbot in self.bots.items():
+			if lbot == bot:
 				return bot_id
 	
-	def get_similar(self, room, nick):
+	def similar(self, roomname, mention):
 		"""
-		get_by_room(room, nick) -> dict
+		in_room(roomname, mention) -> [bot_id]
 		
-		Collect all bots that are connected to the room and have that nick.
+		Get all bots that are connected to a room and match the mention.
+		The bot ids are sorted from small to big.
 		"""
 		
-		return {bot_id: bot for bot_id, bot in self._bots.items()
-		        if bot.roomname() == room and bot.mentionable().lower() == nick.lower()}
+		l = []
+		
+		for bot_id, bot in sorted(self.bots.items()):
+			if bot.get_roomname() == roomname and mention.equals(bot.get_name()):
+				l.append(bot_id)
+		
+		return l
 	
-	def _load_bots(self):
+	def save(self, filename):
 		"""
-		_load_bots() -> None
+		save(filename) -> None
 		
-		Load and create bots from self.bots_file.
-		"""
-		
-		if not self.bots_file:
-			return
-		
-		try:
-			with open(self.bots_file) as f:
-				bots = json.load(f)
-		except FileNotFoundError:
-			pass
-		else:
-			for bot_info in bots:
-				bot = self.create(bot_info["room"], password=bot_info["password"],
-				                  nick=bot_info["nick"])
-				bot.created_in = bot_info["created_in"]
-				bot.created_by = bot_info["created_by"]
-	
-	def _save_bots(self):
-		"""
-		_save_bots() -> None
-		
-		Save all current bots to self.bots_file.
+		Save all current bots to a file.
 		"""
 		
-		if not self.bots_file:
-			return
+		logger.info("Saving bots to {}".format(filename))
 		
 		bots = []
+		for bot in self.bots.values():
+			bots.append({
+				"name": bot.get_name(),
+				"room": bot.get_roomname(),
+				"pw":   bot.get_roompw(),
+				"creator":     bot.get_creator(),
+				"create_room": bot.get_create_room(),
+				"create_time": bot.get_create_time(),
+				"data": bot.save()
+			})
+		logger.debug("Bot info: {}".format(bots))
 		
-		for bot_id, bot in self._bots.items():
-			bot_info = {}
-			
-			bot_info["room"]       = bot.roomname()
-			bot_info["password"]   = bot.password()
-			bot_info["nick"]       = bot.nick()
-			bot_info["created_in"] = bot.created_in
-			bot_info["created_by"] = bot.created_by
-			
-			bots.append(bot_info)
+		logger.debug("Writing to file")
+		with open(filename, "w") as f:
+			json.dump(bots, f, sort_keys=True, indent=4)
 		
-		with open(self.bots_file, "w") as f:
-			json.dump(bots, f)
+		logger.info("Saved bots.")
+	
+	def load(self, filename):
+		"""
+		load(filename) -> None
+		
+		Load bots from a file.
+		Creates the bots and starts them.
+		"""
+		
+		logger.info("Loading bots from {}".format(filename))
+		
+		try:
+			logger.debug("Reading file")
+			with open(filename) as f:
+				bots = json.load(f)
+		
+		except FileNotFoundError:
+			logger.warning("File {} not found.".format(filename))
+		
+		else:
+			logger.debug("Bot info: {}".format(bots))
+			for bot_info in bots:
+				self.create(bot_info["name"], bot_info["room"], bot_info["pw"], bot_info["creator"],
+				            bot_info["create_room"], bot_info["create_time"]).load(bot_info["data"])
+		
+		logger.info("Loaded bots.")
+	
+	def interactive(self):
+		"""
+		interactive() -> None
+		
+		Start interactive mode that allows you to manage bots using commands.
+		Command list:
+		[NYI]
+		"""
+		
+		pass

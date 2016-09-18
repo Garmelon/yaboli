@@ -1,10 +1,11 @@
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+formatter = logging.Formatter('%(asctime)s|%(name)s|%(levelname)s| %(message)s')
+sh = logging.StreamHandler()
+sh.setFormatter(formatter)
+logger.addHandler(sh)
+
 from .bot import Bot
 from .botmanager import BotManager
-from .callbacks import Callbacks
-from .connection import Connection
-from .exceptions import *
-from .session import Session
-from .message import Message
-from .sessions import Sessions
-from .messages import Messages
-from .room import Room
