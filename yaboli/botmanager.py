@@ -1,6 +1,10 @@
 import json
+import time
 import logging
 logger = logging.getLogger(__name__)
+
+from .exceptions import CreateBotException
+from .mention import Mention
 
 class BotManager:
 	"""
@@ -17,24 +21,30 @@ class BotManager:
 		self.bot_id_counter = 0 # no two bots can have the same id
 		self.bots = {} # each bot has an unique id
 	
-	def create(self, name, room, pw=None, creator=None, create_room=None, create_time=None):
+	def create(self, name, roomname, pw=None, creator=None, create_room=None, create_time=None):
 		"""
-		create(name, room, pw, creator, create_room, create_time) -> bot
+		create(name, roomname, pw, creator, create_room, create_time) -> bot
 		
 		Create a bot of type self.bot_class.
 		Starts the bot and returns it.
 		"""
 		
+		if self.bot_limit and len(self.bots) >= self.bot_limit:
+			raise CreateBotException("Bot limit hit ({} bots)".format(self.bot_limit))
+		
 		bot_id = self.bot_id_counter
 		self.bot_id_counter += 1
 		
-		bot = self.bot_class(name=name, room=room, pw=pw, creator=creator,
-		                     create_room=create_room, create_time=create_time)
+		if create_time is None:
+			create_time = time.time()
+		
+		bot = self.bot_class(name, roomname, pw=pw, creator=creator, create_room=create_room,
+		                     create_time=create_time, manager=self)
 		
 		self.bots[bot_id] = bot
-		bot.run(self)
+		bot.launch()
 		
-		logger.info("Created {}: {} in room {}".format(bot_id, name, room))
+		logger.info("Created {} - {} in room {}".format(bot_id, name, roomname))
 		return bot
 	
 	def remove(self, bot_id):
@@ -49,12 +59,12 @@ class BotManager:
 	
 		# for logging purposes
 		name = bot.get_name()
-		room = bot.get_roomname()
+		roomname = bot.get_roomname()
 		
 		bot.stop()
 		del self.bots[bot_id]
 		
-		logger.info("Removed {}: {} in room {}".format(bot_id, name, room))
+		logger.info("Removed {} - {} in room {}".format(bot_id, name, roomname))
 	
 	def get(self, bot_id):
 		"""
@@ -89,7 +99,7 @@ class BotManager:
 		l = []
 		
 		for bot_id, bot in sorted(self.bots.items()):
-			if bot.get_roomname() == roomname and mention.equals(bot.get_name()):
+			if bot.get_roomname() == roomname and mention == Mention(bot.get_name()):
 				l.append(bot_id)
 		
 		return l
@@ -143,8 +153,12 @@ class BotManager:
 		else:
 			logger.debug("Bot info: {}".format(bots))
 			for bot_info in bots:
-				self.create(bot_info["name"], bot_info["room"], bot_info["pw"], bot_info["creator"],
-				            bot_info["create_room"], bot_info["create_time"]).load(bot_info["data"])
+				try:
+					self.create(bot_info["name"], bot_info["room"], bot_info["pw"],
+					            bot_info["creator"], bot_info["create_room"],
+					            bot_info["create_time"]).load(bot_info["data"])
+				except CreateBotException as err:
+					logger.warning("Creating bot failed: {}.".format(err))
 		
 		logger.info("Loaded bots.")
 	
