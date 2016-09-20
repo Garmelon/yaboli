@@ -10,12 +10,22 @@ class BotManager:
 	"""
 	Keep track of multiple bots in different rooms.
 	Save and load bots from a file.
+	
+	If you've created a bot from the Bot class, you can easily host it by adding:
+	
+	if __name__ == "__main__":
+		manager = BotManager(YourBotClass, bot_limit=10)
+		manager.interactive()
+	
+	to your file and then executing it.
 	"""
 	
 	def __init__(self, bot_class, bot_limit=None):
 		"""
-		
+		bot_class - bot class you want to run
+		bot_limit - maximum amount of bots to exist simultaneously
 		"""
+		
 		self.bot_class = bot_class
 		self.bot_limit = bot_limit
 		self.bot_id_counter = 0 # no two bots can have the same id
