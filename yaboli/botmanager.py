@@ -31,9 +31,9 @@ class BotManager:
 		self.bot_id_counter = 0 # no two bots can have the same id
 		self.bots = {} # each bot has an unique id
 	
-	def create(self, name, roomname, pw=None, creator=None, create_room=None, create_time=None):
+	def create(self, nick, roomname, pw=None, creator=None, create_room=None, create_time=None):
 		"""
-		create(name, roomname, pw, creator, create_room, create_time) -> bot
+		create(nick, roomname, pw, creator, create_room, create_time) -> bot
 		
 		Create a bot of type self.bot_class.
 		Starts the bot and returns it.
@@ -48,13 +48,13 @@ class BotManager:
 		if create_time is None:
 			create_time = time.time()
 		
-		bot = self.bot_class(name, roomname, pw=pw, creator=creator, create_room=create_room,
+		bot = self.bot_class(nick, roomname, pw=pw, creator=creator, create_room=create_room,
 		                     create_time=create_time, manager=self)
 		
 		self.bots[bot_id] = bot
 		bot.launch()
 		
-		logger.info("Created {} - {} in room {}".format(bot_id, name, roomname))
+		logger.info("Created {} - {} in room {}".format(bot_id, nick, roomname))
 		return bot
 	
 	def remove(self, bot_id):
@@ -68,13 +68,13 @@ class BotManager:
 		if not bot: return
 	
 		# for logging purposes
-		name = bot.get_name()
+		nick = bot.get_nick()
 		roomname = bot.get_roomname()
 		
 		bot.stop()
 		del self.bots[bot_id]
 		
-		logger.info("Removed {} - {} in room {}".format(bot_id, name, roomname))
+		logger.info("Removed {} - {} in room {}".format(bot_id, nick, roomname))
 	
 	def get(self, bot_id):
 		"""
@@ -109,7 +109,7 @@ class BotManager:
 		l = []
 		
 		for bot_id, bot in sorted(self.bots.items()):
-			if bot.get_roomname() == roomname and mention == Mention(bot.get_name()):
+			if bot.get_roomname() == roomname and mention == Mention(bot.get_nick()):
 				l.append(bot_id)
 		
 		return l
@@ -126,7 +126,7 @@ class BotManager:
 		bots = []
 		for bot in self.bots.values():
 			bots.append({
-				"name": bot.get_name(),
+				"nick": bot.get_nick(),
 				"room": bot.get_roomname(),
 				"pw":   bot.get_roompw(),
 				"creator":     bot.get_creator(),
@@ -164,7 +164,7 @@ class BotManager:
 			logger.debug("Bot info: {}".format(bots))
 			for bot_info in bots:
 				try:
-					self.create(bot_info["name"], bot_info["room"], bot_info["pw"],
+					self.create(bot_info["nick"], bot_info["room"], bot_info["pw"],
 					            bot_info["creator"], bot_info["create_room"],
 					            bot_info["create_time"]).load(bot_info["data"])
 				except CreateBotException as err:
