@@ -31,9 +31,9 @@ class BotManager:
 		self.bot_id_counter = 0 # no two bots can have the same id
 		self.bots = {} # each bot has an unique id
 	
-	def create(self, nick, roomname, pw=None, creator=None, create_room=None, create_time=None):
+	def create(self, nick, roomname, password=None, creator=None, create_room=None, create_time=None):
 		"""
-		create(nick, roomname, pw, creator, create_room, create_time) -> bot
+		create(nick, roomname, password, creator, create_room, create_time) -> bot
 		
 		Create a bot of type self.bot_class.
 		Starts the bot and returns it.
@@ -48,7 +48,7 @@ class BotManager:
 		if create_time is None:
 			create_time = time.time()
 		
-		bot = self.bot_class(nick, roomname, pw=pw, creator=creator, create_room=create_room,
+		bot = self.bot_class(nick, roomname, password=password, creator=creator, create_room=create_room,
 		                     create_time=create_time, manager=self)
 		
 		self.bots[bot_id] = bot
@@ -128,7 +128,7 @@ class BotManager:
 			bots.append({
 				"nick": bot.get_nick(),
 				"room": bot.get_roomname(),
-				"pw":   bot.get_roompw(),
+				"password":   bot.get_roompassword(),
 				"creator":     bot.get_creator(),
 				"create_room": bot.get_create_room(),
 				"create_time": bot.get_create_time(),
@@ -164,7 +164,7 @@ class BotManager:
 			logger.debug("Bot info: {}".format(bots))
 			for bot_info in bots:
 				try:
-					self.create(bot_info["nick"], bot_info["room"], bot_info["pw"],
+					self.create(bot_info["nick"], bot_info["room"], bot_info["password"],
 					            bot_info["creator"], bot_info["create_room"],
 					            bot_info["create_time"]).load(bot_info["data"])
 				except CreateBotException as err:
