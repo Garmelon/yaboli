@@ -1,5 +1,6 @@
 import json
 import logging
+import ssl
 import time
 import threading
 import websocket
@@ -7,6 +8,7 @@ from websocket import WebSocketException as WSException
 
 from .callbacks import Callbacks
 
+SSLOPT_CA_CERTS = {'ca_certs': ssl.get_default_verify_paths().cafile}
 logger = logging.getLogger(__name__)
 
 class Connection():
@@ -33,15 +35,23 @@ class Connection():
 		
 		self.room = room
 		
-		self._url_format = url_format or ROOM_FORMAT
+		self._url_format = url_format or Connection.ROOM_FORMAT
 		
 		self._stopping = False
 		
 		self._ws = None
 		self._thread = None
 		self._send_id = 0
-		self._callbacks = callbacks.Callbacks()
-		self._id_callbacks = callbacks.Callbacks()
+		self._callbacks = Callbacks()
+		self._id_callbacks = Callbacks()
+		self._lock = threading.Lock()
+	
+	def __enter__(self):
+		self._lock.acquire()
+		return self
+	
+	def __exit__(self, exc_type, exc_value, traceback):
+		self._lock.release()
 	
 	def _connect(self, tries=-1, delay=10):
 		"""
@@ -59,21 +69,22 @@ class Connection():
 		while tries != 0:
 			try:
 				url = self._url_format.format(self.room)
-				logger.log("Connecting to url: {!r}".format(url))
+				logger.info("Connecting to url: {!r}".format(url))
 				logger.debug("{} {} left".format(
 					tries-1 if tries>0 else "infinite",
-					"tries" if tries!=1 else "try" # proper english :D
+					"tries" if (tries-1)!=1 else "try" # proper english :D
 				))
 				self._ws = websocket.create_connection(
 					url,
-					enable_multithread=True
+					enable_multithread=True,
+					sslopt=SSLOPT_CA_CERTS
 				)
 			
 			except WSException:
 				if tries > 0:
 					tries -= 1
 				if tries != 0:
-					logger.log("Connection failed. Retrying in {} seconds.".format(delay))
+					logger.info("Connection failed. Retrying in {} seconds.".format(delay))
 					time.sleep(delay)
 			
 			else:
