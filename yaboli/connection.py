@@ -18,7 +18,7 @@ class Connection():
 	
 	Callbacks:
 		- all the message types from api.euphoria.io
-		  These pass the packet data as argument to the called functions.
+		  These pass the packet data and errors (if any) as arguments to the called functions.
 		  The other callbacks don't pass any special arguments.
 		- "connect"
 		- "disconnect"
@@ -53,7 +53,7 @@ class Connection():
 	def __exit__(self, exc_type, exc_value, traceback):
 		self._lock.release()
 	
-	def _connect(self, tries=-1, delay=10):
+	def _connect(self, tries=20, delay=10):
 		"""
 		_connect(tries, delay) -> bool
 		
@@ -69,10 +69,10 @@ class Connection():
 		while tries != 0:
 			try:
 				url = self._url_format.format(self.room)
-				logger.info("Connecting to url: {!r}".format(url))
-				logger.debug("{} {} left".format(
-					tries-1 if tries>0 else "infinite",
-					"tries" if (tries-1)!=1 else "try" # proper english :D
+				logger.info("Connecting to url: {!r} ({} {} left)".format(
+					url,
+					tries-1 if tries > 0 else "infinite",
+					"tries" if (tries-1) != 1 else "try" # proper english :D
 				))
 				self._ws = websocket.create_connection(
 					url,
@@ -86,6 +86,9 @@ class Connection():
 				if tries != 0:
 					logger.info("Connection failed. Retrying in {} seconds.".format(delay))
 					time.sleep(delay)
+				else:
+					logger.info("No more tries, stopping.")
+					self.stop()
 			
 			else:
 				logger.debug("Connected")
@@ -117,15 +120,11 @@ class Connection():
 		Connect to the room and spawn a new thread.
 		"""
 		
-		if self._connect(tries=1):
-			self._thread = threading.Thread(target=self._run,
-			                                name="{}-{}".format(self.room, int(time.time())))
-			logger.debug("Launching new thread: {}".format(self._thread.name))
-			self._thread.start()
-			return self._thread
-		else:
-			logger.debug("Room probably doesn't exist.");
-			self.stop()
+		self._thread = threading.Thread(target=self._run,
+		                                name="{}-{}".format(int(time.time()), self.room))
+		logger.debug("Launching new thread: {}".format(self._thread.name))
+		self._thread.start()
+		return self._thread
 	
 	def _run(self):
 		"""
@@ -135,6 +134,9 @@ class Connection():
 		"""
 		
 		logger.debug("Running")
+		if not self.switch_to(self.room):
+			return
+		
 		while not self._stopping:
 			try:
 				self._handle_json(self._ws.recv())
@@ -169,15 +171,22 @@ class Connection():
 		Attempts to connect to new_room.
 		"""
 		
-		old_room = self.room
-		logger.info("Switching to &{} from &{}".format(old_room, new_room))
+		old_room = self.room if self._ws else None
 		self.room = new_room
 		self.disconnect()
+		if old_room:
+			logger.info("Switching to &{} from &{}.".format(old_room, new_room))
+		else:
+			logger.info("Switching to &{}.".format(new_room))
 		
 		if not self._connect(tries=1):
-			logger.info("Could not connect to &{}: Connecting to ${} again.".format(new_room, old_room))
-			self.room = old_room
-			self._connect()
+			if old_room:
+				logger.info("Could not connect to &{}: Connecting to ${} again.".format(new_room, old_room))
+				self.room = old_room
+				self._connect()
+			else:
+				logger.info("Could not connect to &{}.".format(new_room))
+			
 			return False
 		
 		return True
