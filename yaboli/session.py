@@ -31,9 +31,9 @@ class Session():
 	
 	def __init__(self, room, password=None):
 		self._connection = Connection(room)
-		self._connection.add_callback("disconnect", self._on_disconnect)
-		self._connection.add_callback("bounce-event", self.handle_bounce_event)
-		self._connection.add_callback("ping-event", self.handle_ping_event)
+		self._connection.subscribe("disconnect", self._on_disconnect)
+		self._connection.subscribe("bounce-event", self.handle_bounce_event)
+		self._connection.subscribe("ping-event", self.handle_ping_event)
 		
 		self._callbacks = Callbacks()
 		self._hello_event_completed = False
@@ -60,7 +60,7 @@ class Session():
 	def name(self, new_name):
 		with self._connection as conn:
 			logger.debug("setting name to {!r}".format(new_name))
-			conn.add_next_callback(self.handle_nick_reply)
+			conn.subscribe_to_next(self.handle_nick_reply)
 			conn.send_packet("nick", name=new_name)
 	
 	def _on_disconnect(self):
@@ -74,7 +74,7 @@ class Session():
 		if data.get("reason") == "authentication required":
 			if self.password:
 				with self._connection as conn:
-					conn.add_next_callback(self.handle_auth_reply)
+					conn.subscribe_to_next(self.handle_auth_reply)
 					conn.send_packet("auth", type="passcode", passcode=self.password)
 			else:
 				logger.warn("Could not access &{}: No password.".format(self._connection.room))

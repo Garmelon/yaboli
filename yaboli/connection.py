@@ -200,27 +200,27 @@ class Connection():
 		
 		return str(self._send_id)
 	
-	def add_callback(self, ptype, callback, *args, **kwargs):
+	def subscribe(self, ptype, callback, *args, **kwargs):
 		"""
-		add_callback(ptype, callback, *args, **kwargs) -> None
+		subscribe(ptype, callback, *args, **kwargs) -> None
 		
 		Add a function to be called when a packet of type ptype is received.
 		"""
 		
 		self._callbacks.add(ptype, callback, *args, **kwargs)
 	
-	def add_id_callback(self, pid, callback, *args, **kwargs):
+	def subscribe_to_id(self, pid, callback, *args, **kwargs):
 		"""
-		add_id_callback(pid, callback, *args, **kwargs) -> None
+		subscribe_to_id(pid, callback, *args, **kwargs) -> None
 		
 		Add a function to be called when a packet with id pid is received.
 		"""
 		
 		self._id_callbacks.add(pid, callback, *args, **kwargs)
 	
-	def add_next_callback(self, callback, *args, **kwargs):
+	def subscribe_to_next(self, callback, *args, **kwargs):
 		"""
-		add_next_callback(callback, *args, **kwargs) -> None
+		subscribe_to_next(callback, *args, **kwargs) -> None
 		
 		Add a function to be called when the answer to the next message sent is received.
 		"""
