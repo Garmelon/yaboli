@@ -33,17 +33,14 @@ class SessionView():
 		data - a euphoria SessionView
 		"""
 		
-		is_staff = data["is_staff"] if "is_staff" in data else None
-		is_manager = data["is_manager"] if "is_manager" in data else None
-		
 		return self(
-			data["id"],
-			data["name"],
-			data["server_id"],
-			data["server_era"],
-			data["session_id"],
-			is_staff,
-			is_manager
+			data.get("id"),
+			data.get("name"),
+			data.get("server_id"),
+			data.get("server_era"),
+			data.get("session_id"),
+			data.get("is_staff"),
+			data.get("is_manager")
 		)
 	
 	def session_type(self):
@@ -66,7 +63,7 @@ class Message():
 		"""
 		id                 - message id
 		time               - time the message was sent (epoch)
-		sender             - session of the sender
+		sender             - SessionView of the sender
 		content            - content of the message
 		parent             - id of the parent message, or None
 		edited             - time of last edit (epoch)
@@ -96,25 +93,19 @@ class Message():
 		data - a euphoria message: http://api.euphoria.io/#message
 		"""
 		
-		sender = SessionView.from_data(data["sender"])
-		parent = data["parent"] if "parent" in data else None
-		edited = data["edited"] if "edited" in data else None
-		deleted = data["deleted"] if "deleted" in data else None
-		truncated = data["truncated"] if "truncated" in data else None
-		previous_edit_id = data["previous_edit_id"] if "previous_edit_id" in data else None
-		encryption_key_id = data["encryption_key_id"] if "encryption_key_id" in data else None
+		sender = SessionView.from_data(data.get("sender"))
 		
 		return self(
-			data["id"],
-			data["time"],
+			data.get("id"),
+			data.get("time"),
 			sender,
-			data["content"],
-			parent=parent,
-			edited=edited,
-			deleted=deleted,
-			truncated=truncated,
-			previous_edit_id=previous_edit_id,
-			encryption_key_id=encryption_key_id
+			data.get("content"),
+			parent=data.get("parent"),
+			edited=data.get("edited"),
+			deleted=data.get("deleted"),
+			truncated=data.get("truncated"),
+			previous_edit_id=data.get("previous_edit_id"),
+			encryption_key_id=data.get("encryption_key_id")
 		)
 	
 	def time_formatted(self, date=True):
