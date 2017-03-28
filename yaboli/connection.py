@@ -1,10 +1,13 @@
 import json
+import logging
 import time
 import threading
 import websocket
 from websocket import WebSocketException as WSException
 
-from . import callbacks
+from .callbacks import Callbacks
+
+logger = logging.getLogger(__name__)
 
 class Connection():
 	"""
@@ -24,15 +27,13 @@ class Connection():
 	
 	def __init__(self, room, url_format=None):
 		"""
-		room - name of the room to connect to
-		
+		room        - name of the room to connect to
+		url_format  - url the bot will connect to, where the room name is represented by {}
 		"""
 		
 		self.room = room
 		
-		if not url_format:
-			url_format = self.ROOM_FORMAT
-		self._url = url_format.format(self.room)
+		self._url_format = url_format or ROOM_FORMAT
 		
 		self._stopping = False
 		
@@ -46,8 +47,9 @@ class Connection():
 		"""
 		_connect(tries, delay) -> bool
 		
-		tries - maximum number of retries
-		        -1 -> retry indefinitely
+		delay  - delay between retries (in seconds)
+		tries  - maximum number of retries
+		         -1 -> retry indefinitely
 		
 		Returns True on success, False on failure.
 		
@@ -56,48 +58,62 @@ class Connection():
 		
 		while tries != 0:
 			try:
+				url = self._url_format.format(self.room)
+				logger.log("Connecting to url: {!r}".format(url))
+				logger.debug("{} {} left".format(
+					tries-1 if tries>0 else "infinite",
+					"tries" if tries!=1 else "try" # proper english :D
+				))
 				self._ws = websocket.create_connection(
-					self._url,
+					url,
 					enable_multithread=True
 				)
-				
-				self._callbacks.call("connect")
-				
-				return True
+			
 			except WSException:
 				if tries > 0:
 					tries -= 1
 				if tries != 0:
+					logger.log("Connection failed. Retrying in {} seconds.".format(delay))
 					time.sleep(delay)
+			
+			else:
+				logger.debug("Connected")
+				self._callbacks.call("connect")
+				return True
+				
 		return False
 	
 	def disconnect(self):
 		"""
 		disconnect() -> None
 		
-		Reconnect to the room.
-		WARNING: To completely disconnect, use stop().
+		Disconnect from the room.
+		This will cause the connection to reconnect.
+		To completely disconnect, use stop().
 		"""
 		
 		if self._ws:
 			self._ws.close()
 			self._ws = None
 		
+		logger.debug("Disconnected")
 		self._callbacks.call("disconnect")
 	
 	def launch(self):
 		"""
 		launch() -> Thread
 		
-		Connect to the room and spawn a new thread running run.
+		Connect to the room and spawn a new thread.
 		"""
 		
 		if self._connect(tries=1):
 			self._thread = threading.Thread(target=self._run,
 			                                name="{}-{}".format(self.room, int(time.time())))
+			logger.debug("Launching new thread: {}".format(self._thread.name))
 			self._thread.start()
 			return self._thread
 		else:
+			logger.debug("Room probably doesn't exist.");
 			self.stop()
 	
 	def _run(self):
@@ -107,6 +123,7 @@ class Connection():
 		Receive messages.
 		"""
 		
+		logger.debug("Running")
 		while not self._stopping:
 			try:
 				self._handle_json(self._ws.recv())
@@ -123,6 +140,7 @@ class Connection():
 		Joins the thread launched by self.launch().
 		"""
 		
+		logger.debug("Stopping")
 		self._stopping = True
 		self.disconnect()
 		
@@ -130,6 +148,28 @@ class Connection():
 		
 		if self._thread and self._thread != threading.current_thread():
 			self._thread.join()
+	
+	def switch_to(self, new_room):
+		"""
+		switch_to(new_room) -> bool
+		
+		Returns True on success, False on failure.
+		
+		Attempts to connect to new_room.
+		"""
+		
+		old_room = self.room
+		logger.info("Switching to &{} from &{}".format(old_room, new_room))
+		self.room = new_room
+		self.disconnect()
+		
+		if not self._connect(tries=1):
+			logger.info("Could not connect to &{}: Connecting to ${} again.".format(new_room, old_room))
+			self.room = old_room
+			self._connect()
+			return False
+		
+		return True
 	
 	def next_id(self):
 		"""
@@ -184,21 +224,19 @@ class Connection():
 		Handle incoming packets
 		"""
 		
-		if "data" in packet:
-			data = packet["data"]
-		else:
-			data = None
+		ptype = packet.get("type")
+		logger.debug("Handling packet of type {}.".format(ptype))
 		
-		if "error" in packet:
-			error = packet["error"]
-		else:
-			error = None
-		
-		self._callbacks.call(packet["type"], data, error)
+		data = packet.get("data")
+		error = packet.get("error")
+		if error:
+			logger.debug("Error in packet: {!r}".format(error))
 		
 		if "id" in packet:
 			self._id_callbacks.call(packet["id"], data, error)
 			self._id_callbacks.remove(packet["id"])
+		
+		self._callbacks.call(packet["type"], data, error)
 	
 	def _send_json(self, data):
 		"""
