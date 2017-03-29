@@ -11,7 +11,9 @@ from .callbacks import Callbacks
 SSLOPT = {"ca_certs": ssl.get_default_verify_paths().cafile}
 #SSLOPT = {"cert_reqs": ssl.CERT_NONE}
 ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class Connection():
 	"""

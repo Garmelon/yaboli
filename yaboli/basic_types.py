@@ -1,5 +1,8 @@
 import time
 
+def mention(name):
+	return "".join(c for c in name if not c in ".!?;&<'\"" and not c.isspace())
+
 class SessionView():
 	"""
 	This class keeps track of session details.
