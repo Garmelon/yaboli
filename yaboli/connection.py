@@ -8,7 +8,9 @@ from websocket import WebSocketException as WSException
 
 from .callbacks import Callbacks
 
-SSLOPT_CA_CERTS = {'ca_certs': ssl.get_default_verify_paths().cafile}
+SSLOPT = {"ca_certs": ssl.get_default_verify_paths().cafile}
+#SSLOPT = {"cert_reqs": ssl.CERT_NONE}
+ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
 logger = logging.getLogger(__name__)
 
 class Connection():
@@ -25,8 +27,6 @@ class Connection():
 		- "stop"
 	"""
 	
-	ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
-	
 	def __init__(self, room, url_format=None):
 		"""
 		room        - name of the room to connect to
@@ -35,7 +35,7 @@ class Connection():
 		
 		self.room = room
 		
-		self._url_format = url_format or Connection.ROOM_FORMAT
+		self._url_format = url_format or ROOM_FORMAT
 		
 		self._stopping = False
 		
@@ -44,7 +44,7 @@ class Connection():
 		self._send_id = 0
 		self._callbacks = Callbacks()
 		self._id_callbacks = Callbacks()
-		self._lock = threading.Lock()
+		self._lock = threading.RLock()
 	
 	def __enter__(self):
 		self._lock.acquire()
@@ -77,7 +77,7 @@ class Connection():
 				self._ws = websocket.create_connection(
 					url,
 					enable_multithread=True,
-					sslopt=SSLOPT_CA_CERTS
+					sslopt=SSLOPT
 				)
 			
 			except WSException:
@@ -107,6 +107,8 @@ class Connection():
 		"""
 		
 		if self._ws:
+			logger.debug("Closing connection!")
+			self._ws.abort()
 			self._ws.close()
 			self._ws = None
 		
@@ -120,8 +122,11 @@ class Connection():
 		Connect to the room and spawn a new thread.
 		"""
 		
-		self._thread = threading.Thread(target=self._run,
-		                                name="{}-{}".format(int(time.time()), self.room))
+		self._stopping = False
+		self._thread = threading.Thread(
+			target=self._run,
+			name="{}-{}".format(int(time.time()), self.room)
+		)
 		logger.debug("Launching new thread: {}".format(self._thread.name))
 		self._thread.start()
 		return self._thread
@@ -134,16 +139,20 @@ class Connection():
 		"""
 		
 		logger.debug("Running")
+		
 		if not self.switch_to(self.room):
 			return
 		
 		while not self._stopping:
 			try:
-				self._handle_json(self._ws.recv())
+				j = self._ws.recv()
+				self._handle_json(j)
 			except (WSException, ConnectionResetError):
 				if not self._stopping:
 					self.disconnect()
 					self._connect()
+		
+		logger.debug("Finished running")
 	
 	def stop(self):
 		"""
@@ -248,15 +257,14 @@ class Connection():
 		logger.debug("Handling packet of type {}.".format(ptype))
 		
 		data = packet.get("data")
-		error = packet.get("error")
-		if error:
+		if "error" in packet:
 			logger.debug("Error in packet: {!r}".format(error))
 		
 		if "id" in packet:
-			self._id_callbacks.call(packet["id"], data, error)
+			self._id_callbacks.call(packet["id"], data, packet)
 			self._id_callbacks.remove(packet["id"])
 		
-		self._callbacks.call(packet["type"], data, error)
+		self._callbacks.call(packet["type"], data, packet)
 	
 	def _send_json(self, data):
 		"""

@@ -26,22 +26,25 @@ class SessionView():
 		self.manager = is_manager
 	
 	@classmethod
-	def from_data(self, data):
+	def from_data(cls, data):
 		"""
 		Creates and returns a session created from the data.
 		
 		data - a euphoria SessionView
 		"""
 		
-		return self(
-			data.get("id"),
-			data.get("name"),
-			data.get("server_id"),
-			data.get("server_era"),
-			data.get("session_id"),
-			data.get("is_staff"),
-			data.get("is_manager")
-		)
+		view = cls(None, None, None, None, None)
+		view.read_data(data)
+		return view
+	
+	def read_data(self, data):
+		if "id"         in data: self.id         = data.get("id")
+		if "name"       in data: self.name       = data.get("name")
+		if "server_id"  in data: self.server_id  = data.get("server_id")
+		if "server_era" in data: self.server_era = data.get("server_era")
+		if "session_id" in data: self.session_id = data.get("session_id")
+		if "is_staff"   in data: self.is_staff   = data.get("is_staff")
+		if "is_manager" in data: self.is_manager = data.get("is_manager")
 	
 	def session_type(self):
 		"""
