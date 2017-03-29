@@ -116,6 +116,15 @@ class Session():
 		logger.debug("Refreshing sessions")
 		self._connection.send_packet("who")
 	
+	def _listing_to_sessions(self, listing):
+		self.sessions = {}
+		
+		for item in listing:
+			view = SessionView.from_data(item)
+			self.sessions[view.session_id] = view
+			
+		self._callbacks.call("sessions-update")
+	
 	def _handle_bounce_event(self, data, packet):
 		if data.get("reason") == "authentication required":
 			if self.password:
@@ -228,10 +237,7 @@ class Session():
 	
 	def _handle_snapshot_event(self, data, packet):
 		# deal with connected sessions
-		for item in data.get("listing"):
-			view = SessionView.from_data(item)
-			self.sessions[view.session_id] = view
-		self._callbacks.call("sessions-update")
+		self._listing_to_sessions(data.get("listing"))
 		
 		# deal with messages
 		# TODO: implement
@@ -283,7 +289,4 @@ class Session():
 		self._callbacks.call("own-message", msg)
 	
 	def _handle_who_reply(self, data, packet):
-		for item in data.get("listing"):
-			view = SessionView.from_data(item)
-			self.sessions[view.session_id] = view
-		self._callbacks.call("sessions-update")
+		self._listing_to_sessions(data.get("listing"))
