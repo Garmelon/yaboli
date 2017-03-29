@@ -29,19 +29,19 @@ class Session():
 		self._connection = Connection(room)
 		self._connection.subscribe("disconnect", self._reset_variables)
 		
-		self._connection.subscribe("bounce-event", self.handle_bounce_event)
-		self._connection.subscribe("disconnect-event", self.handle_disconnect_event)
-		self._connection.subscribe("hello-event", self.handle_hello_event)
-		self._connection.subscribe("join-event", self.handle_join_event)
-		self._connection.subscribe("logout-event", self.handle_logout_event)
-		self._connection.subscribe("network-event", self.handle_network_event)
-		self._connection.subscribe("nick-event", self.handle_nick_event)
-		self._connection.subscribe("edit-message-event", self.handle_edit_message_event)
-		self._connection.subscribe("part-event", self.handle_part_event)
-		self._connection.subscribe("ping-event", self.handle_ping_event)
-		self._connection.subscribe("pm-initiate-event", self.handle_pm_initiate_event)
-		self._connection.subscribe("send-event", self.handle_send_event)
-		self._connection.subscribe("snapshot-event", self.handle_snapshot_event)
+		self._connection.subscribe("bounce-event", self._handle_bounce_event)
+		self._connection.subscribe("disconnect-event", self._handle_disconnect_event)
+		self._connection.subscribe("hello-event", self._handle_hello_event)
+		self._connection.subscribe("join-event", self._handle_join_event)
+		self._connection.subscribe("logout-event", self._handle_logout_event)
+		self._connection.subscribe("network-event", self._handle_network_event)
+		self._connection.subscribe("nick-event", self._handle_nick_event)
+		self._connection.subscribe("edit-message-event", self._handle_edit_message_event)
+		self._connection.subscribe("part-event", self._handle_part_event)
+		self._connection.subscribe("ping-event", self._handle_ping_event)
+		self._connection.subscribe("pm-initiate-event", self._handle_pm_initiate_event)
+		self._connection.subscribe("send-event", self._handle_send_event)
+		self._connection.subscribe("snapshot-event", self._handle_snapshot_event)
 		
 		self._callbacks = Callbacks()
 		self.subscribe("enter", self._on_enter)
@@ -73,7 +73,7 @@ class Session():
 	def _set_name(self, new_name):
 		with self._connection as conn:
 			logger.debug("Setting name to {!r}".format(new_name))
-			conn.subscribe_to_next(self.handle_nick_reply)
+			conn.subscribe_to_next(self._handle_nick_reply)
 			conn.send_packet("nick", name=new_name)
 	
 	def _on_enter(self):
@@ -116,20 +116,20 @@ class Session():
 		logger.debug("Refreshing sessions")
 		self._connection.send_packet("who")
 	
-	def handle_bounce_event(self, data, packet):
+	def _handle_bounce_event(self, data, packet):
 		if data.get("reason") == "authentication required":
 			if self.password:
 				with self._connection as conn:
-					conn.subscribe_to_next(self.handle_auth_reply)
+					conn.subscribe_to_next(self._handle_auth_reply)
 					conn.send_packet("auth", type="passcode", passcode=self.password)
 			else:
 				logger.warn("Could not access &{}: No password.".format(self._connection.room))
 				self.stop()
 	
-	def handle_disconnect_event(self, data, packet):
+	def _handle_disconnect_event(self, data, packet):
 		self._connection.disconnect() # should reconnect
 	
-	def handle_hello_event(self, data, packet):
+	def _handle_hello_event(self, data, packet):
 		self.my_session.read_data(data.get("session"))
 		self._callbacks.call("own-session-update")
 		
@@ -140,7 +140,7 @@ class Session():
 		if self._snapshot_event_completed:
 			self._callbacks.call("enter")
 	
-	def handle_join_event(self, data, packet):
+	def _handle_join_event(self, data, packet):
 		view = SessionView.from_data(data)
 		self.sessions[view.session_id] = view
 		
@@ -151,12 +151,12 @@ class Session():
 		
 		self._callbacks.call("sessions-update")
 	
-	def handle_logout_event(self, data, packet):
+	def _handle_logout_event(self, data, packet):
 		# no idea why this should happen to the bot
 		# just reconnect, in case it does happen
 		self._connection.disconnect()
 	
-	def handle_network_event(self, data, packet):
+	def _handle_network_event(self, data, packet):
 		if data.get("type") == "partition":
 			prev_len = len(self.sessions)
 			
@@ -174,7 +174,7 @@ class Session():
 			
 			self._callbacks.call("sessions-update")
 	
-	def handle_nick_event(self, data, packet):
+	def _handle_nick_event(self, data, packet):
 		session_id = data.get("session_id")
 		
 		if session_id not in self.sessions:
@@ -195,11 +195,11 @@ class Session():
 			
 			self._callbacks.call("sessions-update")
 	
-	def handle_edit_message_event(self, data, packet):
+	def _handle_edit_message_event(self, data, packet):
 		# TODO: implement
 		pass
 	
-	def handle_part_event(self, data, packet):
+	def _handle_part_event(self, data, packet):
 		view = SessionView.from_data(data)
 		if view.session_id not in self.sessions:
 			logger.warn("SessionView not found: Refreshing sessions.")
@@ -214,19 +214,19 @@ class Session():
 			
 			self._callbacks.call("sessions-update")
 	
-	def handle_ping_event(self, data, packet):
+	def _handle_ping_event(self, data, packet):
 		with self._connection as conn:
 			conn.send_packet("ping-reply", time=data.get("time"))
 	
-	def handle_pm_initiate_event(self, data, error):
+	def _handle_pm_initiate_event(self, data, error):
 		pass # placeholder, maybe implemented in the future
 	
-	def handle_send_event(self, data, error):
+	def _handle_send_event(self, data, error):
 		# TODO: implement
 		msg = Message.from_data(data)
 		self._callbacks.call("message", msg)
 	
-	def handle_snapshot_event(self, data, packet):
+	def _handle_snapshot_event(self, data, packet):
 		# deal with connected sessions
 		for item in data.get("listing"):
 			view = SessionView.from_data(item)
@@ -247,22 +247,22 @@ class Session():
 			self._callbacks.call("enter")
 		
 	
-	def handle_auth_reply(self, data, packet):
+	def _handle_auth_reply(self, data, packet):
 		if not data.get("success"):
 			logger.warn("Could not authenticate, reason: {!r}".format(data.get("reason")))
 			self.stop()
 		else:
 			logger.debug("Authetication complete, password was correct.")
 	
-	def handle_get_message_reply(self, data, packet):
+	def _handle_get_message_reply(self, data, packet):
 		# TODO: implement
 		pass
 	
-	def handle_log_event(self, data, packet):
+	def _handle_log_event(self, data, packet):
 		# TODO: implement
 		pass
 	
-	def handle_nick_reply(self, data, packet):
+	def _handle_nick_reply(self, data, packet):
 		first_name = not self.name
 		
 		if data.get("from"):
@@ -277,12 +277,12 @@ class Session():
 			self._ready = True
 			self._callbacks.call("ready")
 	
-	def handle_send_reply(self, data, packet):
+	def _handle_send_reply(self, data, packet):
 		# TODO: implement
 		msg = Message.from_data(data)
 		self._callbacks.call("own-message", msg)
 	
-	def handle_who_reply(self, data, packet):
+	def _handle_who_reply(self, data, packet):
 		for item in data.get("listing"):
 			view = SessionView.from_data(item)
 			self.sessions[view.session_id] = view
