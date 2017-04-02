@@ -1,4 +1,5 @@
 import logging
+import threading
 
 from .callbacks import Callbacks
 from .connection import Connection
@@ -14,19 +15,25 @@ class Session():
 	 - seeing other clients
 	 - sending and receiving messages
 	
-	event (args)       | meaning
-	-------------------|-------------------------------------------------
-	enter              | can view the room
-	ready              | can view the room and post messages (has a nick)
-	sessions-update    | self.sessions has changed
-	own-session-update | your own message has changed
-	message (msg)      | a message has been received (no own messages)
-	own-message (msg)  | a message that you have sent
+	event (args)        | meaning
+	--------------------|-------------------------------------------------
+	join (bool)         | joining the room was successful/not successful
+	                    | Callbacks for this event are cleared whenever it is called.
+	enter               | can view the room
+	ready               | can view the room and post messages (has a nick)
+	sessions-update     | self.sessions has changed
+	own-session-update  | your own message has changed
+	message (msg)       | a message has been received (no own messages)
+	own-message (msg)   | a message that you have sent
 	
 	"""
 	
-	def __init__(self, room, password=None, name=None):
-		self._connection = Connection(room)
+	def __init__(self, name=None):
+		self._room_accessible = False
+		self._room_accessible_event = threading.Event()
+		self._room_accessible_timeout = None
+		
+		self._connection = Connection()
 		self._connection.subscribe("disconnect", self._reset_variables)
 		
 		self._connection.subscribe("bounce-event", self._handle_bounce_event)
@@ -46,8 +53,8 @@ class Session():
 		self._callbacks = Callbacks()
 		self.subscribe("enter", self._on_enter)
 		
-		self.password = password
-		self._wish_name = name
+		self.password = None
+		self.real_name = name
 		
 		#self._hello_event_completed = False
 		#self._snapshot_event_completed = False
@@ -59,10 +66,31 @@ class Session():
 		
 		self._reset_variables()
 	
+	def switch_to(self, room, password=None, timeout=10):
+		logger.info("Switching to &{}.".format(room))
+		self.password = password
+		
+		if self._room_accessible_timeout:
+			self._room_accessible_timeout.cancel()
+		self._room_accessible_timeout = threading.Timer(timeout, self.stop)
+		self._room_accessible_timeout.start()
+		
+		if self._connection.connect_to(room):
+			logger.debug("Connection established. Waiting for correct events")
+			self._room_accessible_event.wait()
+			return self._room_accessible
+		else:
+			logger.warn("Could not connect to room url.")
+			return False
+	
 	def _reset_variables(self):
 		logger.debug("Resetting room-related variables")
+		self._room_accessible = False
+		
 		self.my_session = SessionView(None, None, None, None, None)
 		self.sessions = {}
+		self._room_accessible_event.clear()
+		
 		self._hello_event_completed = False
 		self._snapshot_event_completed = False
 		self._ready = False
@@ -78,15 +106,24 @@ class Session():
 	
 	def _on_enter(self):
 		logger.info("Connected and authenticated.")
+		self._room_accessible_timeout.cancel()
+		self._room_accessible = True
+		self._room_accessible_event.set()
+		self._room_accessible_event.clear()
 		
-		if self._wish_name:
-			self._set_name(self._wish_name)
+		if self.real_name:
+			self._set_name(self.real_name)
 	
 	def launch(self):
 		return self._connection.launch()
 	
 	def stop(self):
 		logger.info("Stopping")
+		self._room_accessible_timeout.cancel()
+		self._room_accessible = False
+		self._room_accessible_event.set()
+		self._room_accessible_event.clear()
+		
 		with self._connection as conn:
 			conn.stop()
 	
@@ -107,16 +144,20 @@ class Session():
 	
 	@name.setter
 	def name(self, new_name):
-		self._wish_name = new_name
+		self.real_name = new_name
 		
 		if not self._ready:
 			self._set_name(new_name)
+	
+	@property
+	def room(self):
+		return self._connection.room
 	
 	def refresh_sessions(self):
 		logger.debug("Refreshing sessions")
 		self._connection.send_packet("who")
 	
-	def _listing_to_sessions(self, listing):
+	def _set_sessions_from_listing(self, listing):
 		self.sessions = {}
 		
 		for item in listing:
@@ -124,6 +165,18 @@ class Session():
 			self.sessions[view.session_id] = view
 			
 		self._callbacks.call("sessions-update")
+	
+	def _revert_to_revious_room(self):
+		self._callbacks.call("join", False)
+		
+		if self._prev_room:
+			self.password = self._prev_password
+			self.room = self._prev_room # shouldn't do this
+			
+			self._prev_room = None
+			self._prev_password = None
+		else:
+			self.stop()
 	
 	def _handle_bounce_event(self, data, packet):
 		if data.get("reason") == "authentication required":
@@ -237,7 +290,7 @@ class Session():
 	
 	def _handle_snapshot_event(self, data, packet):
 		# deal with connected sessions
-		self._listing_to_sessions(data.get("listing"))
+		self._set_sessions_from_listing(data.get("listing"))
 		
 		# deal with messages
 		# TODO: implement
@@ -289,4 +342,4 @@ class Session():
 		self._callbacks.call("own-message", msg)
 	
 	def _handle_who_reply(self, data, packet):
-		self._listing_to_sessions(data.get("listing"))
+		self._set_sessions_from_listing(data.get("listing"))

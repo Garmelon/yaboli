@@ -1,5 +1,6 @@
 import json
 import logging
+import socket
 import ssl
 import time
 import threading
@@ -29,17 +30,19 @@ class Connection():
 		- "stop"
 	"""
 	
-	def __init__(self, room, url_format=None):
+	def __init__(self, url_format=ROOM_FORMAT, tries=10, delay=30):
 		"""
-		room        - name of the room to connect to
 		url_format  - url the bot will connect to, where the room name is represented by {}
+		tries       - how often to try to reconnect when connection is lost (-1 - try forever)
+		delay       - time (in seconds) to wait between tries
 		"""
 		
-		self.room = room
+		self.room = None
+		self.tries = tries
+		self.delay = delay
+		self.url_format = url_format
 		
-		self._url_format = url_format or ROOM_FORMAT
-		
-		self._stopping = False
+		self._stopping = True
 		
 		self._ws = None
 		self._thread = None
@@ -55,7 +58,7 @@ class Connection():
 	def __exit__(self, exc_type, exc_value, traceback):
 		self._lock.release()
 	
-	def _connect(self, tries=20, delay=10):
+	def _connect(self, tries=10, delay=30):
 		"""
 		_connect(tries, delay) -> bool
 		
@@ -70,7 +73,7 @@ class Connection():
 		
 		while tries != 0:
 			try:
-				url = self._url_format.format(self.room)
+				url = self.url_format.format(self.room)
 				logger.info("Connecting to url: {!r} ({} {} left)".format(
 					url,
 					tries-1 if tries > 0 else "infinite",
@@ -82,7 +85,7 @@ class Connection():
 					sslopt=SSLOPT
 				)
 			
-			except WSException:
+			except (WSException, socket.gaierror, TimeoutError):
 				if tries > 0:
 					tries -= 1
 				if tries != 0:
@@ -99,27 +102,9 @@ class Connection():
 				
 		return False
 	
-	def disconnect(self):
+	def _launch(self):
 		"""
-		disconnect() -> None
-		
-		Disconnect from the room.
-		This will cause the connection to reconnect.
-		To completely disconnect, use stop().
-		"""
-		
-		if self._ws:
-			logger.debug("Closing connection!")
-			self._ws.abort()
-			self._ws.close()
-			self._ws = None
-		
-		logger.debug("Disconnected")
-		self._callbacks.call("disconnect")
-	
-	def launch(self):
-		"""
-		launch() -> Thread
+		_launch() -> Thread
 		
 		Connect to the room and spawn a new thread.
 		"""
@@ -142,9 +127,6 @@ class Connection():
 		
 		logger.debug("Running")
 		
-		if not self.switch_to(self.room):
-			return
-		
 		while not self._stopping:
 			try:
 				j = self._ws.recv()
@@ -152,95 +134,14 @@ class Connection():
 			except (WSException, ConnectionResetError):
 				if not self._stopping:
 					self.disconnect()
-					self._connect()
+					self._connect(self.tries, self.delay)
 		
 		logger.debug("Finished running")
-	
-	def stop(self):
-		"""
-		stop() -> None
-		
-		Close the connection to the room.
-		Joins the thread launched by self.launch().
-		"""
-		
-		logger.debug("Stopping")
-		self._stopping = True
-		self.disconnect()
-		
-		self._callbacks.call("stop")
-		
-		if self._thread and self._thread != threading.current_thread():
-			self._thread.join()
-	
-	def switch_to(self, new_room):
-		"""
-		switch_to(new_room) -> bool
-		
-		Returns True on success, False on failure.
-		
-		Attempts to connect to new_room.
-		"""
-		
-		old_room = self.room if self._ws else None
-		self.room = new_room
-		self.disconnect()
-		if old_room:
-			logger.info("Switching to &{} from &{}.".format(old_room, new_room))
-		else:
-			logger.info("Switching to &{}.".format(new_room))
-		
-		if not self._connect(tries=1):
-			if old_room:
-				logger.info("Could not connect to &{}: Connecting to ${} again.".format(new_room, old_room))
-				self.room = old_room
-				self._connect()
-			else:
-				logger.info("Could not connect to &{}.".format(new_room))
-			
-			return False
-		
-		return True
-	
-	def next_id(self):
-		"""
-		next_id() -> id
-		
-		Returns the id that will be used for the next package.
-		"""
-		
-		return str(self._send_id)
-	
-	def subscribe(self, ptype, callback, *args, **kwargs):
-		"""
-		subscribe(ptype, callback, *args, **kwargs) -> None
-		
-		Add a function to be called when a packet of type ptype is received.
-		"""
-		
-		self._callbacks.add(ptype, callback, *args, **kwargs)
-	
-	def subscribe_to_id(self, pid, callback, *args, **kwargs):
-		"""
-		subscribe_to_id(pid, callback, *args, **kwargs) -> None
-		
-		Add a function to be called when a packet with id pid is received.
-		"""
-		
-		self._id_callbacks.add(pid, callback, *args, **kwargs)
-	
-	def subscribe_to_next(self, callback, *args, **kwargs):
-		"""
-		subscribe_to_next(callback, *args, **kwargs) -> None
-		
-		Add a function to be called when the answer to the next message sent is received.
-		"""
-		
-		self._id_callbacks.add(self.next_id(), callback, *args, **kwargs)
+		self._thread = None
 	
 	def _handle_json(self, data):
 		"""
-		handle_json(data) -> None
+		_handle_json(data) -> None
 		
 		Handle incoming 'raw' data.
 		"""
@@ -280,6 +181,100 @@ class Connection():
 				self._ws.send(json.dumps(data))
 			except WSException:
 				self.disconnect()
+	
+	def connected(self):
+		return self._ws
+	
+	def connect_to(self, room):
+		"""
+		connect_to(room) -> bool
+		
+		Attempts to connect to the room and spawns a new thread if it's successful.
+		Returns True if connection was sucessful, else False.
+		"""
+		
+		self.stop()
+		
+		logger.debug("Connecting to &{}.".format(room))
+		self.room = room
+		if self._connect(1):
+			self._launch()
+			return True
+		else:
+			logger.warn("Could not connect to &{}.".format(room))
+			return False
+	
+	def disconnect(self):
+		"""
+		disconnect() -> None
+		
+		Disconnect from the room.
+		This will cause the connection to reconnect.
+		To completely disconnect, use stop().
+		"""
+		
+		if self._ws:
+			logger.debug("Closing connection!")
+			self._ws.abort()
+			self._ws.close()
+			self._ws = None
+		
+		logger.debug("Disconnected")
+		self._id_callbacks = Callbacks() # we don't need the old id callbacks any more
+		self._callbacks.call("disconnect")
+	
+	def stop(self):
+		"""
+		stop() -> None
+		
+		Close the connection to the room.
+		Joins the thread launched by self.launch().
+		"""
+		
+		logger.debug("Stopping")
+		self._stopping = True
+		self.disconnect()
+		
+		self._callbacks.call("stop")
+		
+		if self._thread and self._thread != threading.current_thread():
+			self._thread.join()
+	
+	def next_id(self):
+		"""
+		next_id() -> id
+		
+		Returns the id that will be used for the next package.
+		"""
+		
+		return str(self._send_id)
+	
+	def subscribe(self, ptype, callback, *args, **kwargs):
+		"""
+		subscribe(ptype, callback, *args, **kwargs) -> None
+		
+		Add a function to be called when a packet of type ptype is received.
+		"""
+		
+		self._callbacks.add(ptype, callback, *args, **kwargs)
+	
+	def subscribe_to_id(self, pid, callback, *args, **kwargs):
+		"""
+		subscribe_to_id(pid, callback, *args, **kwargs) -> None
+		
+		Add a function to be called when a packet with id pid is received.
+		"""
+		
+		self._id_callbacks.add(pid, callback, *args, **kwargs)
+	
+	def subscribe_to_next(self, callback, *args, **kwargs):
+		"""
+		subscribe_to_next(callback, *args, **kwargs) -> None
+		
+		Add a function to be called when the answer to the next message sent is received.
+		"""
+		
+		self._id_callbacks.add(self.next_id(), callback, *args, **kwargs)
 	
 	def send_packet(self, ptype, **kwargs):
 		"""
