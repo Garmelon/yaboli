@@ -28,14 +28,17 @@ class Session():
 	
 	"""
 	
-	def __init__(self, name=None):
+	def __init__(self, room, password=None, name=None, timeout=10):
+		self.password = password
+		self.real_name = name
+		
 		self._room_accessible = False
 		self._room_accessible_event = threading.Event()
-		self._room_accessible_timeout = None
+		self._room_accessible_timeout = threading.Timer(timeout, self.stop)
 		
-		self._connection = Connection()
+		self._connection = Connection(room)
 		self._connection.subscribe("disconnect", self._reset_variables)
-		
+		# and now the packet types
 		self._connection.subscribe("bounce-event", self._handle_bounce_event)
 		self._connection.subscribe("disconnect-event", self._handle_disconnect_event)
 		self._connection.subscribe("hello-event", self._handle_hello_event)
@@ -53,9 +56,6 @@ class Session():
 		self._callbacks = Callbacks()
 		self.subscribe("enter", self._on_enter)
 		
-		self.password = None
-		self.real_name = name
-		
 		#self._hello_event_completed = False
 		#self._snapshot_event_completed = False
 		#self._ready = False
@@ -66,30 +66,12 @@ class Session():
 		
 		self._reset_variables()
 	
-	def switch_to(self, room, password=None, timeout=10):
-		logger.info("Switching to &{}.".format(room))
-		self.password = password
-		
-		if self._room_accessible_timeout:
-			self._room_accessible_timeout.cancel()
-		self._room_accessible_timeout = threading.Timer(timeout, self.stop)
-		self._room_accessible_timeout.start()
-		
-		if self._connection.connect_to(room):
-			logger.debug("Connection established. Waiting for correct events")
-			self._room_accessible_event.wait()
-			return self._room_accessible
-		else:
-			logger.warn("Could not connect to room url.")
-			return False
-	
 	def _reset_variables(self):
 		logger.debug("Resetting room-related variables")
 		self._room_accessible = False
 		
 		self.my_session = SessionView(None, None, None, None, None)
 		self.sessions = {}
-		self._room_accessible_event.clear()
 		
 		self._hello_event_completed = False
 		self._snapshot_event_completed = False
@@ -113,6 +95,19 @@ class Session():
 		
 		if self.real_name:
 			self._set_name(self.real_name)
+	
+	def launch(self, timeout=10):
+		logger.info("Launching session &{}.".format(room))
+		
+		self._room_accessible_timeout.start()
+		
+		if self._connection.launch(room):
+			logger.debug("Connection established. Waiting for correct events")
+			self._room_accessible_event.wait()
+			return self._room_accessible
+		else:
+			logger.warn("Could not connect to room url.")
+			return False
 	
 	def launch(self):
 		return self._connection.launch()
@@ -152,6 +147,10 @@ class Session():
 	@property
 	def room(self):
 		return self._connection.room
+	
+	@property
+	def start_time(self):
+		return self._connection.start_time
 	
 	def refresh_sessions(self):
 		logger.debug("Refreshing sessions")

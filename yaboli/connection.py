@@ -14,7 +14,7 @@ SSLOPT = {"ca_certs": ssl.get_default_verify_paths().cafile}
 ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+#logger.setLevel(logging.INFO)
 
 class Connection():
 	"""
@@ -30,17 +30,19 @@ class Connection():
 		- "stop"
 	"""
 	
-	def __init__(self, url_format=ROOM_FORMAT, tries=10, delay=30):
+	def __init__(self, room, url_format=ROOM_FORMAT, tries=10, delay=30):
 		"""
 		url_format  - url the bot will connect to, where the room name is represented by {}
 		tries       - how often to try to reconnect when connection is lost (-1 - try forever)
 		delay       - time (in seconds) to wait between tries
 		"""
 		
-		self.room = None
+		self.room = room
 		self.tries = tries
 		self.delay = delay
 		self.url_format = url_format
+		
+		self.start_time = None
 		
 		self._stopping = True
 		
@@ -101,22 +103,6 @@ class Connection():
 				return True
 				
 		return False
-	
-	def _launch(self):
-		"""
-		_launch() -> Thread
-		
-		Connect to the room and spawn a new thread.
-		"""
-		
-		self._stopping = False
-		self._thread = threading.Thread(
-			target=self._run,
-			name="{}-{}".format(int(time.time()), self.room)
-		)
-		logger.debug("Launching new thread: {}".format(self._thread.name))
-		self._thread.start()
-		return self._thread
 	
 	def _run(self):
 		"""
@@ -182,26 +168,27 @@ class Connection():
 			except WSException:
 				self.disconnect()
 	
-	def connected(self):
-		return self._ws
-	
-	def connect_to(self, room):
+	def launch(self):
 		"""
-		connect_to(room) -> bool
+		launch() -> bool
 		
-		Attempts to connect to the room and spawns a new thread if it's successful.
-		Returns True if connection was sucessful, else False.
+		Connect to the room and spawn a new thread.
+		Returns True if connecting was successful and a new thread was spawned.
 		"""
 		
-		self.stop()
-		
-		logger.debug("Connecting to &{}.".format(room))
-		self.room = room
 		if self._connect(1):
-			self._launch()
+			self.start_time = time.time()
+			self._stopping = False
+			
+			self._thread = threading.Thread(
+				target=self._run,
+				name="{}-{}".format(int(self.start_time), self.room)
+			)
+			
+			logger.debug("Launching new thread: {}".format(self._thread.name))
+			self._thread.start()
 			return True
 		else:
-			logger.warn("Could not connect to &{}.".format(room))
 			return False
 	
 	def disconnect(self):
