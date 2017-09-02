@@ -48,12 +48,33 @@ class Room:
 	
 	# CATEGORY: SESSION COMMANDS
 	
-	async def auth(self, atype, passcode):
-		pass # TODO
+	async def auth(self, atype, passcode=None):
+		"""
+		success, reason=None = await auth(atype, passcode=None)
+		
+		  From api.euphoria.io:
+		The auth command attempts to join a private room. It should be sent in
+		response to a bounce-event at the beginning of a session.
+		
+		The auth-reply packet reports whether the auth command succeeded.
+		"""
+		
+		data = {"type": atype}
+		if passcode:
+			data["passcode"] = passcode
+			
+		response = await self._send_packet("auth", data)
+		rdata = response.get("data")
+		
+		success = rdata.get("success")
+		reason = rdata.get("reason", None)
+		return success, reason
 	
 	async def ping_reply(self, time):
 		"""
-		From api.euphoria.io:
+		await ping_reply(time)
+		
+		  From api.euphoria.io:
 		The ping command initiates a client-to-server ping. The server will
 		send back a ping-reply with the same timestamp as soon as possible.
 		
@@ -66,16 +87,52 @@ class Room:
 	# CATEGORY: CHAT ROOM COMMANDS
 	
 	async def get_message(self, message_id):
-		pass # TODO
+		"""
+		message = await get_message(message_id)
+		
+		  From api.euphoria.io:
+		The get-message command retrieves the full content of a single message
+		in the room.
+		
+		get-message-reply returns the message retrieved by get-message.
+		"""
+		
+		data = {"id": message_id}
+		
+		response = await self._send_packet("get-message", data)
+		rdata = response.get("data")
+		
+		message = Message.from_dict(rdata)
+		return message
 	
 	async def log(self, n, before=None):
-		pass # TODO
+		"""
+		log, before=None = await log(n, before=None)
+		
+		  From api.euphoria.io:
+		The log command requests messages from the room’s message log. This can
+		be used to supplement the log provided by snapshot-event (for example,
+		when scrolling back further in history).
+		
+		The log-reply packet returns a list of messages from the room’s message
+		"""
+		
+		data = {"n": n}
+		if before:
+			data["before"] = before
+			
+		response = await self._send_packet("log", data)
+		rdata = response.get("data")
+		
+		messages = [Message.from_dict(d) for d in rdata.get("log")]
+		before = rdata.get("before", None)
+		return messages, before
 	
 	async def nick(self, name):
 		"""
 		session_id, user_id, from_nick, to_nick = await nick(name)
 		
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		The nick command sets the name you present to the room. This name
 		applies to all messages sent during this session, until the nick
 		command is called again.
@@ -86,24 +143,45 @@ class Room:
 		
 		data = {"name": name}
 		
-		response = await self._conn.send("nick", data)
-		self._check_for_errors(response)
+		response = await self._send_packet("nick", data)
+		rdata = response.get("data")
 		
-		session_id = response.get("session_id")
-		user_id = response.get("id")
-		from_nick = response.get("from")
-		to_nick = response.get("to")
+		session_id = rdata.get("session_id")
+		user_id = rdata.get("id")
+		from_nick = rdata.get("from")
+		to_nick = rdata.get("to")
 		
+		# update self.session
 		self.session.nick = to_nick
 		
 		return session_id, user_id, from_nick, to_nick
 	
 	async def pm_initiate(self, user_id):
-		pass # TODO
+		"""
+		pm_id, to_nick = await pm_initiate(user_id)
+		
+		  From api.euphoria.io:
+		The pm-initiate command constructs a virtual room for private messaging
+		between the client and the given UserID.
+		
+		The pm-initiate-reply provides the PMID for the requested private
+		messaging room.
+		"""
+		
+		data = {"user_id": user_id}
+		
+		response = await self._send_packet("pm-initiate", data)
+		rdata = response.get("data")
+		
+		pm_id = rdata.get("pm_id")
+		to_nick = rdata.get("to_nick")
+		return pm_id, to_nick
 	
 	async def send(self, content, parent=None):
 		"""
-		From api.euphoria.io:
+		message = await send(content, parent=None)
+		
+		  From api.euphoria.io:
 		The send command sends a message to a room. The session must be
 		successfully joined with the room. This message will be broadcast to
 		all sessions joined with the room.
@@ -119,14 +197,34 @@ class Room:
 		if parent:
 			data["parent"] = parent
 		
-		response = await self._conn.send("send", data)
-		self._check_for_errors(response)
+		response = await self._send_packet("send", data)
+		rdata = response.get("data")
 		
-		message = Message.from_dict(response.get("data"))
+		message = Message.from_dict(rdata)
 		return message
 	
 	async def who(self):
-		pass # TODO
+		"""
+		sessions = await who()
+		
+		  From api.euphoria.io:
+		The who command requests a list of sessions currently joined in the
+		room.
+		
+		The who-reply packet lists the sessions currently joined in the room.
+		"""
+		
+		response = await self._send_packet("who")
+		rdata = response.get("data")
+		
+		sessions = [Session.from_dict(d) for d in rdata.get("listing")]
+		
+		# update self.listing
+		self.listing = Listing()
+		for session in sessions:
+			self.listing.add(session)
+		
+		return sessions
 	
 	# CATEGORY: ACCOUNT COMMANDS
 	# NYI, and probably never will
@@ -157,6 +255,12 @@ class Room:
 		self._callbacks["send-event"] = self._handle_send
 		self._callbacks["snapshot-event"] = self._handle_snapshot
 	
+	async def _send_packet(self, *args, **kwargs):
+		response = await self._conn.send(*args, **kwargs)
+		self._check_for_errors(response)
+		
+		return response
+	
 	async def _handle_packet(self, packet):
 		self._check_for_errors(packet)
 		
@@ -178,7 +282,7 @@ class Room:
 	
 	async def _handle_bounce(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A bounce-event indicates that access to a room is denied.
 		"""
 		
@@ -193,7 +297,7 @@ class Room:
 	
 	async def _handle_disconnect(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A disconnect-event indicates that the session is being closed. The
 		client will subsequently be disconnected.
 		
@@ -207,7 +311,7 @@ class Room:
 	
 	async def _handle_hello(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A hello-event is sent by the server to the client when a session is
 		started. It includes information about the client’s authentication and
 		associated identity.
@@ -233,7 +337,7 @@ class Room:
 	
 	async def _handle_join(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A join-event indicates a session just joined the room.
 		"""
 		
@@ -256,7 +360,7 @@ class Room:
 	
 	async def _handle_nick(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		nick-event announces a nick change by another session in the room.
 		"""
 		
@@ -281,7 +385,7 @@ class Room:
 	
 	async def _handle_part(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A part-event indicates a session just disconnected from the room.
 		"""
 		
@@ -295,7 +399,7 @@ class Room:
 	
 	async def _handle_ping(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A ping-event represents a server-to-client ping. The client should send
 		back a ping-reply with the same value for the time field as soon as
 		possible (or risk disconnection).
@@ -313,7 +417,7 @@ class Room:
 	
 	async def _handle_send(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A send-event indicates a message received by the room from another
 		session.
 		"""
@@ -325,7 +429,7 @@ class Room:
 	
 	async def _handle_snapshot(self, packet):
 		"""
-		From api.euphoria.io:
+		  From api.euphoria.io:
 		A snapshot-event indicates that a session has successfully joined a
 		room. It also offers a snapshot of the room’s state and recent history.
 		"""

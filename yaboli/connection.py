@@ -52,9 +52,10 @@ class Connection:
 		pid = self._new_pid()
 		packet = {
 			"type": ptype,
-			"data": data,
 			"id": str(pid)
 		}
+		if data:
+			packet["data"] = data
 		
 		if await_response:
 			wait_for = self._wait_for_response(pid)
@@ -86,24 +87,3 @@ class Connection:
 		self._pending_responses[pid] = future
 		
 		return future
-
-#async def handle_packet(packet):
-	#if packet.get("type") == "ping-event":
-		#await c._ws.send('{"type":"ping-reply","data":{"time":' + str(packet.get("data").get("time")) + '}}')
-		##await c.send("ping-reply", {"time": packet.get("data").get("time")}, False)
-
-#c = Connection("wss://euphoria.io/room/test/ws", handle_packet)
-
-async def await_future(f):
-	await f
-	print(f.result())
-
-def run():
-	f = asyncio.Future()
-	#f.set_result("Hello World!")
-	f.cancel()
-	#f.set_result("Hello World!")
-	
-	loop = asyncio.get_event_loop()
-	loop.run_until_complete(await_future(f))
-	#loop.run_until_complete(c.run())
