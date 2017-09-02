@@ -61,6 +61,10 @@ class Listing:
 	def remove(self, session_id):
 		self._sessions.pop(session_id)
 	
+	def remove_combo(self, server_id, server_era):
+		self._sessions = {i: ses for i, ses in self._sessions.items
+		                  if ses.server_id != server_id and ses.server_era != server_era}
+	
 	def by_sid(self, session_id):
 		return self._sessions.get(session_id);
 	

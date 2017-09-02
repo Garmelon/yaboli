@@ -350,13 +350,46 @@ class Room:
 		await self.controller.on_join(session)
 	
 	async def _handle_login(self, packet):
-		pass # TODO
+		"""
+		  From api.euphoria.io:
+		The login-event packet is sent to all sessions of an agent when that
+		agent is logged in (except for the session that issued the login
+		command).
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_login(data.get("account_id"))
 	
 	async def _handle_logout(self, packet):
-		pass # TODO
+		"""
+		  From api.euphoria.io:
+		The logout-event packet is sent to all sessions of an agent when that
+		agent is logged out (except for the session that issued the logout
+		command).
+		"""
+		
+		await self.controller.on_logout()
 	
 	async def _handle_network(self, packet):
-		pass # TODO
+		"""
+		  From api.euphoria.io:
+		A network-event indicates some server-side event that impacts the
+		presence of sessions in a room.
+		
+		If the network event type is partition, then this should be treated as
+		a part-event for all sessions connected to the same server id/era
+		combo.
+		"""
+		
+		data = packet.get("data")
+		server_id = data.get("server_id")
+		server_era = data.get("server_era")
+		
+		# update self.listing
+		self.listing.remove_combo(server_id, server_era)
+		
+		await self.controller.on_network(server_id, server_era)
 	
 	async def _handle_nick(self, packet):
 		"""
@@ -381,7 +414,20 @@ class Room:
 		)
 	
 	async def _handle_edit_message(self, packet):
-		pass # TODO
+		"""
+		  From api.euphoria.io:
+		An edit-message-event indicates that a message in the room has been
+		modified or deleted. If the client offers a user interface and the
+		indicated message is currently displayed, it should update its display
+		accordingly.
+		
+		The event packet includes a snapshot of the message post-edit.
+		"""
+		
+		data = packet.get("data")
+		message = Message.from_dict(data)
+		
+		await self.controller.on_edit_message(message)
 	
 	async def _handle_part(self, packet):
 		"""
@@ -413,7 +459,20 @@ class Room:
 		)
 	
 	async def _handle_pm_initiate(self, packet):
-		pass # TODO
+		"""
+		  From api.euphoria.io:
+		The pm-initiate-event informs the client that another user wants to
+		chat with them privately.
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_pm_initiate(
+			data.get("from"),
+			data.get("from_nick"),
+			data.get("from_room"),
+			data.get("pm_id")
+		)
 	
 	async def _handle_send(self, packet):
 		"""
