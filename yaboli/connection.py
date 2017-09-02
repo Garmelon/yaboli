@@ -5,7 +5,9 @@ asyncio.get_event_loop().set_debug(True)
 
 import json
 import websockets
-from websockets import ConnectionClosed
+#from websockets import ConnectionClosed
+
+__all__ = ["Connection"]
 
 
 

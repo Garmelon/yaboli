@@ -1,4 +1,6 @@
-from room import Room
+from .room import Room
+
+__all__ = ["Controller"]
 
 
 

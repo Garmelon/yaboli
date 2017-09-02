@@ -1,6 +1,9 @@
-import re
-
-__all__ = ["mention", "mention_reduced", "similar", "Session", "Listing", "Message", "Log"]
+__all__ = [
+	"mention", "mention_reduced", "similar",
+	"Session", "Listing",
+	"Message", "Log",
+	"ResponseError"
+]
 
 
 
@@ -111,3 +114,6 @@ class Message():
 
 class Log:
 	pass # TODO
+
+class ResponseError(Exception):
+	pass

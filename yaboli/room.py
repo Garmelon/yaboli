@@ -1,6 +1,10 @@
 import asyncio
-from connection import Connection
-import utils
+from .connection import *
+from .utils import *
+
+__all__ = ["Room"]
+
+
 
 class Room:
 	ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
@@ -17,7 +21,7 @@ class Room:
 		# If you need to keep track of messages, use utils.Log.
 		self.session = None
 		self.account = None
-		self.listing = utils.Listing()
+		self.listing = Listing()
 		
 		# Various room information
 		self.account_has_access = None
@@ -118,7 +122,7 @@ class Room:
 		response = await self._conn.send("send", data)
 		self._check_for_errors(response)
 		
-		message = utils.Message.from_dict(response.get("data"))
+		message = Message.from_dict(response.get("data"))
 		return message
 	
 	async def who(self):
@@ -170,7 +174,7 @@ class Room:
 		# TODO: log throttled
 		
 		if "error" in packet:
-			raise utils.ResponseError(response.get("error"))
+			raise ResponseError(response.get("error"))
 	
 	async def _handle_bounce(self, packet):
 		"""
@@ -210,7 +214,7 @@ class Room:
 		"""
 		
 		data = packet.get("data")
-		self.session = utils.Session.from_dict(data.get("session"))
+		self.session = Session.from_dict(data.get("session"))
 		self.room_is_private = data.get("room_is_private")
 		self.version = data.get("version")
 		self.account = data.get("account", None)
@@ -234,7 +238,7 @@ class Room:
 		"""
 		
 		data = packet.get("data")
-		session = utils.Session.from_dict(data)
+		session = Session.from_dict(data)
 		
 		# update self.listing
 		self.listing.add(session)
@@ -282,7 +286,7 @@ class Room:
 		"""
 		
 		data = packet.get("data")
-		session = utils.Session.from_dict(data)
+		session = Session.from_dict(data)
 		
 		# update self.listing
 		self.listing.remove(session.session_id)
@@ -315,7 +319,7 @@ class Room:
 		"""
 		
 		data = packet.get("data")
-		message = utils.Message.from_dict(data)
+		message = Message.from_dict(data)
 		
 		await self.controller.on_send(message)
 	
@@ -328,8 +332,8 @@ class Room:
 		
 		data = packet.get("data")
 		
-		sessions = [utils.Session.from_dict(d) for d in data.get("listing")]
-		messages = [utils.Message.from_dict(d) for d in data.get("log")]
+		sessions = [Session.from_dict(d) for d in data.get("listing")]
+		messages = [Message.from_dict(d) for d in data.get("log")]
 		
 		# update self.listing
 		for session in sessions:

@@ -1,12 +1,11 @@
 import asyncio
-#from controller import Bot
-from controller import Controller
-from utils import *
+import yaboli
+from yaboli.utils import *
 
 
 
 #class TestBot(Bot):
-class TestBot(Controller):
+class TestBot(yaboli.Controller):
 	def __init__(self, roomname):
 		super().__init__(roomname)
 	
