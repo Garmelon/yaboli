@@ -64,3 +64,32 @@ class Listing:
 	def get_bots(self):
 		return {uid: ses for uid, ses in self._sessions.items()
 		        if ses.client_type is "bot"}
+
+class Message():
+	def __init__(self, message_id, time, sender, content, parent=None, previous_edit_id=None,
+	             encryption_key=None, edited=None, deleted=None, truncated=None):
+		self.message_id = message_id
+		self.time = time
+		self.sender = sender
+		self.content = content
+		self.parent = parent
+		self.previous_edit_id = previous_edit_id
+		self.encryption_key = encryption_key
+		self.edited = edited
+		self.deleted = deleted
+		self.truncated = truncated
+	
+	@classmethod
+	def from_dict(cls, d):
+		return cls(
+			d.get("id"),
+			d.get("time"),
+			Session.from_dict(d.get("sender")),
+			d.get("content"),
+			d.get("parent"),
+			d.get("previous_edit_id"),
+			d.get("encryption_key"),
+			d.get("edited"),
+			d.get("deleted"),
+			d.get("truncated")
+		)

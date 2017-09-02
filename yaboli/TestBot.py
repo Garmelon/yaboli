@@ -9,8 +9,9 @@ class TestBot(Controller):
 	def __init__(self, roomname):
 		super().__init__(roomname)
 	
-	#async def on_connected(self):
-		#await self.room.set_nick("TestBot")
+	async def on_snapshot(self, user_id, session_id, version, listing, log, nick=None,
+	                      pm_with_nick=None, pm_with_user_id=None):
+		await self.room.nick("TestBot")
 		
 	async def on_hello(self, user_id, session, room_is_private, version, account=None,
 	                   account_has_access=None, account_email_verified=None):

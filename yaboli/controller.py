@@ -54,9 +54,17 @@ class Controller:
 				await self.room.stop()
 	
 	async def on_start(self):
+		"""
+		The first callback called when the controller is run.
+		"""
+		
 		pass
 	
 	async def on_stop(self):
+		"""
+		The last callback called when the controller is run.
+		"""
+		
 		pass
 	
 	async def on_connected(self):
@@ -124,6 +132,6 @@ class Controller:
 	async def on_send(self, message):
 		pass
 	
-	async def on_snapshot(self, user_id, snapshot_id, version, listing, log, nick=None,
+	async def on_snapshot(self, user_id, session_id, version, listing, log, nick=None,
 	                      pm_with_nick=None, pm_with_user_id=None):
 		pass

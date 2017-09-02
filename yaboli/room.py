@@ -24,6 +24,8 @@ class Room:
 		self.account_email_verified = None
 		self.room_is_private = None
 		self.version = None # the version of the code being run and served by the server
+		self.pm_with_nick = None
+		self.pm_with_user_id = None
 		
 		self._callbacks = {}
 		self._add_callbacks()
@@ -46,7 +48,15 @@ class Room:
 		pass # TODO
 	
 	async def ping_reply(self, time):
-		pass # TODO
+		"""
+		The ping command initiates a client-to-server ping. The server will
+		send back a ping-reply with the same timestamp as soon as possible.
+		
+		ping-reply is a response to a ping command or ping-event.
+		"""
+		
+		data = {"time": time}
+		await self._conn.send("ping-reply", data, await_response=False)
 	
 	# CATEGORY: CHAT ROOM COMMANDS
 	
@@ -57,7 +67,28 @@ class Room:
 		pass # TODO
 	
 	async def nick(self, name):
-		pass # TODO
+		"""
+		session_id, user_id, from_nick, to_nick = await nick(name)
+		
+		The nick command sets the name you present to the room. This name
+		applies to all messages sent during this session, until the nick
+		command is called again.
+		
+		nick-reply confirms the nick command. It returns the session’s former
+		and new names (the server may modify the requested nick).
+		"""
+		
+		data = {"name": name}
+		response = await self._conn.send("nick", data)
+		
+		session_id = response.get("session_id")
+		user_id = response.get("id")
+		from_nick = response.get("from")
+		to_nick = response.get("to")
+		
+		self.session.nick = to_nick
+		
+		return session_id, user_id, from_nick, to_nick
 	
 	async def pm_initiate(self, user_id):
 		pass # TODO
@@ -164,7 +195,11 @@ class Room:
 		"""
 		
 		data = packet.get("data")
-		await self.controller.on_ping(data.get("time"), data.get("next"))
+		
+		await self.controller.on_ping(
+			data.get("time"),
+			data.get("next")
+		)
 	
 	async def _handle_pm_initiate(self, packet):
 		pass # TODO
@@ -173,4 +208,33 @@ class Room:
 		pass # TODO
 	
 	async def _handle_snapshot(self, packet):
-		pass # TODO
+		"""
+		A snapshot-event indicates that a session has successfully joined a
+		room. It also offers a snapshot of the room’s state and recent history.
+		"""
+		
+		data = packet.get("data")
+		
+		for session_data in data.get("listing"):
+			session = utils.Session.from_dict(session_data)
+			self.listing.add(session)
+			
+		log = [utils.Message.from_dict(d) for d in data.get("log")]
+		
+		self.session.nick = data.get("nick")
+		
+		self.pm_with_nick = data.get("pm_with_nick"),
+		self.pm_with_user_id = data.get("pm_with_user_id")
+		
+		await self.controller.on_connected()
+		
+		await self.controller.on_snapshot(
+			data.get("identity"),
+			data.get("session_id"),
+			self.version,
+			self.listing,
+			log,
+			nick=self.session.nick,
+			pm_with_nick=self.pm_with_nick,
+			pm_with_user_id=self.pm_with_user_id
+		)

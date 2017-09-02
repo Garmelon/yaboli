@@ -15,14 +15,14 @@ class Connection:
 		self.cookie = cookie
 		self.packet_hook = packet_hook
 		
-		stopped = False
+		self.stopped = False
 		
 		self._ws = None
 		self._pid = 0
 		self._pending_responses = {}
 	
 	async def run(self):
-		self._ws = await websockets.connect(self.url)
+		self._ws = await websockets.connect(self.url, max_size=None)
 		
 		try:
 			while True:
@@ -35,31 +35,33 @@ class Connection:
 			self._ws = None
 			stopped = True
 			
-			for futures in self._pending_responses:
-				for future in futures:
-					future.set_error(ConnectionClosed)
-					future.cancel()
+			for future in self._pending_responses:
+				future.set_error(ConnectionClosed)
+				future.cancel() # TODO: Is this needed?
 	
 	async def stop(self):
-		if not stopped and self._ws:
+		if not self.stopped and self._ws:
 			await self._ws.close()
 	
 	async def send(self, ptype, data=None, await_response=True):
-		if stopped:
+		if self.stopped:
 			raise ConnectionClosed
 		
 		pid = self._new_pid()
-		packet["type"] = ptype
-		packet["data"] = data
-		packet["id"] = pid
+		packet = {
+			"type": ptype,
+			"data": data,
+			"id": str(pid)
+		}
 		
 		if await_response:
 			wait_for = self._wait_for_response(pid)
-			await self._ws.send(json.dumps(packet))
+		
+		await self._ws.send(json.dumps(packet, separators=(',', ':')))
+		
+		if await_response:
 			await wait_for
 			return wait_for.result()
-		else:
-			await self._ws.send(json.dumps(packet))
 	
 	def _new_pid(self):
 		self._pid += 1
@@ -70,7 +72,8 @@ class Connection:
 		
 		# Deal with pending responses
 		pid = packet.get("id")
-		for future in self._pending_responses.pop(pid, []):
+		future = self._pending_responses.pop(pid, None)
+		if future:
 			future.set_result(packet)
 		
 		# Pass packet onto room
@@ -78,19 +81,17 @@ class Connection:
 	
 	def _wait_for_response(self, pid):
 		future = asyncio.Future()
-		
-		if pid not in self._pending_responses:
-			self._pending_responses[pid] = []
-		self._pending_responses[pid].append(future)
+		self._pending_responses[pid] = future
 		
 		return future
 
-def do_nothing(*args, **kwargs):
-	pass
+#async def handle_packet(packet):
+	#if packet.get("type") == "ping-event":
+		#await c._ws.send('{"type":"ping-reply","data":{"time":' + str(packet.get("data").get("time")) + '}}')
+		##await c.send("ping-reply", {"time": packet.get("data").get("time")}, False)
 
-def run():
-	conn = Connection("wss://echo.websocket.org", do_nothing)
-	loop = asyncio.get_event_loop()
-	#loop.call_later(3, conn.stop)
-	
-	loop.run_until_complete(asyncio.ensure_future(conn.run()))
+#c = Connection("wss://euphoria.io/room/test/ws", handle_packet)
+
+#def run():
+	#loop = asyncio.get_event_loop()
+	#loop.run_until_complete(asyncio.ensure_future(c.run()))
