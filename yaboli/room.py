@@ -1,5 +1,6 @@
 import asyncio
-from .connection import Connection
+from connection import Connection
+import utils
 
 class Room:
 	ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
@@ -15,15 +16,22 @@ class Room:
 		# with differently by different controllers.
 		# If you need to keep track of messages, use utils.Log.
 		self.session = None
-		self.sessions = None
+		self.account = None
+		self.listing = utils.Listing()
+		
+		# Various room information
+		self.account_has_access = None
+		self.account_email_verified = None
+		self.room_is_private = None
+		self.version = None # the version of the code being run and served by the server
 		
 		self._callbacks = {}
 		self._add_callbacks()
 		
 		if human:
-			url = HUMAN_FORMAT.format(self.roomname)
+			url = self.HUMAN_FORMAT.format(self.roomname)
 		else:
-			url = ROOM_FORMAT.format(self.roomname)
+			url = self.ROOM_FORMAT.format(self.roomname)
 		self._conn = Connection(url, self._handle_packet, self.cookie)
 	
 	async def run(self):
@@ -34,30 +42,30 @@ class Room:
 	
 	# CATEGORY: SESSION COMMANDS
 	
-	async def auth(atype, passcode):
+	async def auth(self, atype, passcode):
 		pass # TODO
 	
-	async def ping_reply(time):
+	async def ping_reply(self, time):
 		pass # TODO
 	
 	# CATEGORY: CHAT ROOM COMMANDS
 	
-	async def get_message(message_id):
+	async def get_message(self, message_id):
 		pass # TODO
 	
-	async def log(n, before=None):
+	async def log(self, n, before=None):
 		pass # TODO
 	
-	async def nick(name):
+	async def nick(self, name):
 		pass # TODO
 	
-	async def pm_initiate(user_id):
+	async def pm_initiate(self, user_id):
 		pass # TODO
 	
-	async def send(content, parent=None):
+	async def send(self, content, parent=None):
 		pass # TODO
 	
-	async def who()
+	async def who(self):
 		pass # TODO
 	
 	# CATEGORY: ACCOUNT COMMANDS
@@ -102,7 +110,29 @@ class Room:
 		pass # TODO
 	
 	async def _handle_hello(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		A hello-event is sent by the server to the client when a session is
+		started. It includes information about the client’s authentication and
+		associated identity.
+		"""
+		
+		data = packet.get("data")
+		self.session = utils.Session.from_dict(data.get("session"))
+		self.account_has_access = data.get("account_has_access")
+		self.account_email_verified = data.get("account_email_verified")
+		self.room_is_private = data.get("room_is_private")
+		self.version = data.get("version")
+		
+		await self.controller.on_hello(
+			data.get("id"),
+			self.session,
+			self.room_is_private,
+			self.version,
+			account=self.account,
+			account_has_access=self.account_has_access,
+			account_email_verified=self.account_email_verified
+		)
 	
 	async def _handle_join(self, packet):
 		pass # TODO
@@ -126,7 +156,15 @@ class Room:
 		pass # TODO
 	
 	async def _handle_ping(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		A ping-event represents a server-to-client ping. The client should send
+		back a ping-reply with the same value for the time field as soon as
+		possible (or risk disconnection).
+		"""
+		
+		data = packet.get("data")
+		await self.controller.on_ping(data.get("time"), data.get("next"))
 	
 	async def _handle_pm_initiate(self, packet):
 		pass # TODO

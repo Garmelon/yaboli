@@ -1,4 +1,4 @@
-from .room import Room
+from room import Room
 
 
 
@@ -53,7 +53,12 @@ class Controller:
 			if self.room:
 				await self.room.stop()
 	
-	# room successfully connected
+	async def on_start(self):
+		pass
+	
+	async def on_stop(self):
+		pass
+	
 	async def on_connected(self):
 		"""
 		Client has successfully (re-)joined the room.
@@ -81,7 +86,8 @@ class Controller:
 	async def on_disconnect(self, reason):
 		pass
 	
-	async def on_hello(self, user_id, session, room_is_private, version, account=None, account_has_access=None, account_email_verified=None):
+	async def on_hello(self, user_id, session, room_is_private, version, account=None,
+	                   account_has_access=None, account_email_verified=None):
 		pass
 	
 	async def on_join(self, session):
@@ -96,7 +102,7 @@ class Controller:
 	async def on_network(self, ntype, server_id, server_era):
 		pass
 	
-	async def on_nick(self, session_id, user_id, from, to):
+	async def on_nick(self, session_id, user_id, from_name, to_name):
 		pass
 	
 	async def on_edit_message(self, edit_id, message):
@@ -109,14 +115,15 @@ class Controller:
 		"""
 		Default implementation, refer to api.euphoria.io
 		"""
-		
+
 		await self.room.ping_reply(ptime)
 	
-	async def on_pm_initiate(self, from, from_nick, from_room, pm_id):
+	async def on_pm_initiate(self, from_id, from_nick, from_room, pm_id):
 		pass
 	
 	async def on_send(self, message):
 		pass
 	
-	async def on_snapshot(self, user_id, snapshot_id, version, listing, log, nick=None, pm_with_nick=None, pm_with_user_id=None):
+	async def on_snapshot(self, user_id, snapshot_id, version, listing, log, nick=None,
+	                      pm_with_nick=None, pm_with_user_id=None):
 		pass

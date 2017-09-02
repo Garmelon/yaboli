@@ -44,7 +44,7 @@ class Connection:
 		if not stopped and self._ws:
 			await self._ws.close()
 	
-	async def send(ptype, data=None, await_response=True):
+	async def send(self, ptype, data=None, await_response=True):
 		if stopped:
 			raise ConnectionClosed
 		
@@ -65,7 +65,7 @@ class Connection:
 		self._pid += 1
 		return self._pid
 	
-	async def _handle_json(text):
+	async def _handle_json(self, text):
 		packet = json.loads(text)
 		
 		# Deal with pending responses
@@ -76,7 +76,7 @@ class Connection:
 		# Pass packet onto room
 		await self.packet_hook(packet)
 	
-	def _wait_for_response(pid):
+	def _wait_for_response(self, pid):
 		future = asyncio.Future()
 		
 		if pid not in self._pending_responses:
