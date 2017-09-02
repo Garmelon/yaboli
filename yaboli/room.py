@@ -49,6 +49,7 @@ class Room:
 	
 	async def ping_reply(self, time):
 		"""
+		From api.euphoria.io:
 		The ping command initiates a client-to-server ping. The server will
 		send back a ping-reply with the same timestamp as soon as possible.
 		
@@ -70,6 +71,7 @@ class Room:
 		"""
 		session_id, user_id, from_nick, to_nick = await nick(name)
 		
+		From api.euphoria.io:
 		The nick command sets the name you present to the room. This name
 		applies to all messages sent during this session, until the nick
 		command is called again.
@@ -79,7 +81,9 @@ class Room:
 		"""
 		
 		data = {"name": name}
+		
 		response = await self._conn.send("nick", data)
+		self._check_for_errors(response)
 		
 		session_id = response.get("session_id")
 		user_id = response.get("id")
@@ -94,7 +98,28 @@ class Room:
 		pass # TODO
 	
 	async def send(self, content, parent=None):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		The send command sends a message to a room. The session must be
+		successfully joined with the room. This message will be broadcast to
+		all sessions joined with the room.
+		
+		If the room is private, then the message content will be encrypted
+		before it is stored and broadcast to the rest of the room.
+		
+		The caller of this command will not receive the corresponding
+		send-event, but will receive the same information in the send-reply.
+		"""
+		
+		data = {"content": content}
+		if parent:
+			data["parent"] = parent
+		
+		response = await self._conn.send("send", data)
+		self._check_for_errors(response)
+		
+		message = utils.Message.from_dict(response.get("data"))
+		return message
 	
 	async def who(self):
 		pass # TODO
@@ -129,16 +154,52 @@ class Room:
 		self._callbacks["snapshot-event"] = self._handle_snapshot
 	
 	async def _handle_packet(self, packet):
+		self._check_for_errors(packet)
+		
 		ptype = packet.get("type")
 		callback = self._callbacks.get(ptype)
 		if callback:
-			await callback(packet)
+			try:
+				await callback(packet)
+			except asyncio.CancelledError as e:
+				# TODO: log error
+				print("HEHEHEHEY, CANCELLEDERROR", e)
+				pass
+	
+	def _check_for_errors(self, packet):
+		# TODO: log throttled
+		
+		if "error" in packet:
+			raise utils.ResponseError(response.get("error"))
 	
 	async def _handle_bounce(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		A bounce-event indicates that access to a room is denied.
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_bounce(
+			reason=data.get("reason", None),
+			auth_options=data.get("auth_options", None),
+			agent_id=data.get("agent_id", None),
+			ip=data.get("ip", None)
+		)
 	
 	async def _handle_disconnect(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		A disconnect-event indicates that the session is being closed. The
+		client will subsequently be disconnected.
+		
+		If the disconnect reason is “authentication changed”, the client should
+		immediately reconnect.
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_disconnect(data.get("reason"))
 	
 	async def _handle_hello(self, packet):
 		"""
@@ -150,10 +211,11 @@ class Room:
 		
 		data = packet.get("data")
 		self.session = utils.Session.from_dict(data.get("session"))
-		self.account_has_access = data.get("account_has_access")
-		self.account_email_verified = data.get("account_email_verified")
 		self.room_is_private = data.get("room_is_private")
 		self.version = data.get("version")
+		self.account = data.get("account", None)
+		self.account_has_access = data.get("account_has_access", None)
+		self.account_email_verified = data.get("account_email_verified", None)
 		
 		await self.controller.on_hello(
 			data.get("id"),
@@ -166,7 +228,18 @@ class Room:
 		)
 	
 	async def _handle_join(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		A join-event indicates a session just joined the room.
+		"""
+		
+		data = packet.get("data")
+		session = utils.Session.from_dict(data)
+		
+		# update self.listing
+		self.listing.add(session)
+		
+		await self.controller.on_join(session)
 	
 	async def _handle_login(self, packet):
 		pass # TODO
@@ -178,13 +251,43 @@ class Room:
 		pass # TODO
 	
 	async def _handle_nick(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		nick-event announces a nick change by another session in the room.
+		"""
+		
+		data = packet.get("data")
+		session_id = data.get("session_id")
+		to_nick = data.get("to")
+		
+		# update self.listing
+		session = self.listing.by_sid(session_id)
+		if session:
+			session.nick = to_nick
+		
+		await self.controller.on_nick(
+			session_id,
+			data.get("id"),
+			data.get("from"),
+			to_nick
+		)
 	
 	async def _handle_edit_message(self, packet):
 		pass # TODO
 	
 	async def _handle_part(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		A part-event indicates a session just disconnected from the room.
+		"""
+		
+		data = packet.get("data")
+		session = utils.Session.from_dict(data)
+		
+		# update self.listing
+		self.listing.remove(session.session_id)
+		
+		await self.controller.on_part(session)
 	
 	async def _handle_ping(self, packet):
 		"""
@@ -205,26 +308,37 @@ class Room:
 		pass # TODO
 	
 	async def _handle_send(self, packet):
-		pass # TODO
+		"""
+		From api.euphoria.io:
+		A send-event indicates a message received by the room from another
+		session.
+		"""
+		
+		data = packet.get("data")
+		message = utils.Message.from_dict(data)
+		
+		await self.controller.on_send(message)
 	
 	async def _handle_snapshot(self, packet):
 		"""
+		From api.euphoria.io:
 		A snapshot-event indicates that a session has successfully joined a
 		room. It also offers a snapshot of the room’s state and recent history.
 		"""
 		
 		data = packet.get("data")
 		
-		for session_data in data.get("listing"):
-			session = utils.Session.from_dict(session_data)
+		sessions = [utils.Session.from_dict(d) for d in data.get("listing")]
+		messages = [utils.Message.from_dict(d) for d in data.get("log")]
+		
+		# update self.listing
+		for session in sessions:
 			self.listing.add(session)
-			
-		log = [utils.Message.from_dict(d) for d in data.get("log")]
 		
-		self.session.nick = data.get("nick")
+		self.session.nick = data.get("nick", None)
 		
-		self.pm_with_nick = data.get("pm_with_nick"),
-		self.pm_with_user_id = data.get("pm_with_user_id")
+		self.pm_with_nick = data.get("pm_with_nick", None),
+		self.pm_with_user_id = data.get("pm_with_user_id", None)
 		
 		await self.controller.on_connected()
 		
@@ -232,8 +346,8 @@ class Room:
 			data.get("identity"),
 			data.get("session_id"),
 			self.version,
-			self.listing,
-			log,
+			sessions, # listing
+			messages, # log
 			nick=self.session.nick,
 			pm_with_nick=self.pm_with_nick,
 			pm_with_user_id=self.pm_with_user_id

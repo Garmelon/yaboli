@@ -1,8 +1,23 @@
+import re
+
+__all__ = ["mention", "mention_reduced", "similar", "Session", "Listing", "Message", "Log"]
+
+
+
+def mention(nick):
+	return "".join(c for c in nick if c not in ".!?;&<'\"" and not c.isspace())
+
+def mention_reduced(nick):
+	return mention(nick).lower()
+
+def similar(nick1, nick2):
+	return mention_reduced(nick1) == mention_reduced(nick2)
+
 class Session:
-	def __init__(self, user_id, name, server_id, server_era, session_id, is_staff=None,
+	def __init__(self, user_id, nick, server_id, server_era, session_id, is_staff=None,
 	             is_manager=None, client_address=None, real_address=None):
 		self.user_id = user_id
-		self.name = name
+		self.nick = nick
 		self.server_id = server_id
 		self.server_era = server_era
 		self.session_id = session_id
@@ -19,10 +34,10 @@ class Session:
 			d.get("server_id"),
 			d.get("server_era"),
 			d.get("session_id"),
-			d.get("is_staff"),
-			d.get("is_manager"),
-			d.get("client_address"),
-			d.get("real_address")
+			d.get("is_staff", None),
+			d.get("is_manager", None),
+			d.get("client_address", None),
+			d.get("real_address", None)
 		)
 	
 	@property
@@ -86,10 +101,13 @@ class Message():
 			d.get("time"),
 			Session.from_dict(d.get("sender")),
 			d.get("content"),
-			d.get("parent"),
-			d.get("previous_edit_id"),
-			d.get("encryption_key"),
-			d.get("edited"),
-			d.get("deleted"),
-			d.get("truncated")
+			d.get("parent", None),
+			d.get("previous_edit_id", None),
+			d.get("encryption_key", None),
+			d.get("edited", None),
+			d.get("deleted", None),
+			d.get("truncated", None)
 		)
+
+class Log:
+	pass # TODO

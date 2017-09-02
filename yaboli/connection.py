@@ -36,8 +36,8 @@ class Connection:
 			stopped = True
 			
 			for future in self._pending_responses:
-				future.set_error(ConnectionClosed)
-				future.cancel() # TODO: Is this needed?
+				#future.set_error(ConnectionClosed)
+				future.cancel()
 	
 	async def stop(self):
 		if not self.stopped and self._ws:
@@ -92,6 +92,16 @@ class Connection:
 
 #c = Connection("wss://euphoria.io/room/test/ws", handle_packet)
 
-#def run():
-	#loop = asyncio.get_event_loop()
-	#loop.run_until_complete(asyncio.ensure_future(c.run()))
+async def await_future(f):
+	await f
+	print(f.result())
+
+def run():
+	f = asyncio.Future()
+	#f.set_result("Hello World!")
+	f.cancel()
+	#f.set_result("Hello World!")
+	
+	loop = asyncio.get_event_loop()
+	loop.run_until_complete(await_future(f))
+	#loop.run_until_complete(c.run())

@@ -110,7 +110,7 @@ class Controller:
 	async def on_network(self, ntype, server_id, server_era):
 		pass
 	
-	async def on_nick(self, session_id, user_id, from_name, to_name):
+	async def on_nick(self, session_id, user_id, from_nick, to_nick):
 		pass
 	
 	async def on_edit_message(self, edit_id, message):
