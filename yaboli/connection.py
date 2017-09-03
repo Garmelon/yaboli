@@ -49,10 +49,10 @@ class Connection:
 		if self.stopped:
 			raise ConnectionClosed
 		
-		pid = self._new_pid()
+		pid = str(self._new_pid())
 		packet = {
 			"type": ptype,
-			"id": str(pid)
+			"id": pid
 		}
 		if data:
 			packet["data"] = data
