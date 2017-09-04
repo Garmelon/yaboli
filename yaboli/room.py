@@ -1,7 +1,9 @@
 import asyncio
+import logging
 from .connection import *
 from .utils import *
 
+logger = logging.getLogger(__name__)
 __all__ = ["Room"]
 
 
@@ -34,17 +36,40 @@ class Room:
 		self._callbacks = {}
 		self._add_callbacks()
 		
+		self._stopping = False
+		self._runtask = None
+		
 		if human:
 			url = self.HUMAN_FORMAT.format(self.roomname)
 		else:
 			url = self.ROOM_FORMAT.format(self.roomname)
 		self._conn = Connection(url, self._handle_packet, self.cookie)
 	
-	async def run(self):
-		await self._conn.run()
+	async def connect(self, max_tries=10, delay=60):
+		task = await self._conn.connect(max_tries=1)
+		if task:
+			self._runtask = asyncio.ensure_future(self._run(task, max_tries=max_tries, delay=delay))
+			return self._runtask
+	
+	async def _run(self, task, max_tries=10, delay=60):
+		while not self._stopping:
+			await task
+			await self.controller.on_disconnected()
+			
+			task = await self._conn.connect(max_tries=max_tries, delay=delay)
+			if not task:
+				return
+		
+		self.stopping = False
 	
 	async def stop(self):
+		self._stopping = True
 		await self._conn.stop()
+		
+		if self._runtask:
+			await self._runtask
+	
+	
 	
 	# CATEGORY: SESSION COMMANDS
 	
@@ -270,12 +295,11 @@ class Room:
 			try:
 				await callback(packet)
 			except asyncio.CancelledError as e:
-				# TODO: log error
-				print("HEHEHEHEY, CANCELLEDERROR", e)
-				pass
+				logger.info(f"&{self.roomname}: Callback of type {ptype!r} cancelled.")
 	
 	def _check_for_errors(self, packet):
-		# TODO: log throttled
+		if packet.get("throttled", False):
+			logger.warn(f"&{self.roomname}: Throttled for reason: {packet.get('throttled_reason', 'no reason')!r}")
 		
 		if "error" in packet:
 			raise ResponseError(response.get("error"))

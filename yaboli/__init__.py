@@ -1,3 +1,10 @@
+import logging
+#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 from .connection import *
 from .room import *
 from .controller import *
