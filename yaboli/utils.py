@@ -1,4 +1,7 @@
+import asyncio
+
 __all__ = [
+	"run_controller",
 	"mention", "mention_reduced", "similar",
 	"Session", "Listing",
 	"Message", "Log",
@@ -6,6 +9,18 @@ __all__ = [
 ]
 
 
+
+def run_controller(controller, room):
+	"""
+	Helper function to run a singular controller.
+	"""
+	
+	async def run():
+		task, reason = await controller.connect(room)
+		if task:
+			await task
+	
+	asyncio.get_event_loop().run_until_complete(run())
 
 def mention(nick):
 	return "".join(c for c in nick if c not in ".!?;&<'\"" and not c.isspace())

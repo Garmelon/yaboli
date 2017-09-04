@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from .callbacks import *
 from .connection import *
 from .utils import *
 
@@ -33,7 +34,7 @@ class Room:
 		self.pm_with_nick = None
 		self.pm_with_user_id = None
 		
-		self._callbacks = {}
+		self._callbacks = Callbacks()
 		self._add_callbacks()
 		
 		self._stopping = False
@@ -266,20 +267,20 @@ class Room:
 	# All the private functions for dealing with stuff
 	
 	def _add_callbacks(self):
-		self._callbacks["bounce-event"] = self._handle_bounce
-		self._callbacks["disconnect-event"] = self._handle_disconnect
-		self._callbacks["hello-event"] = self._handle_hello
-		self._callbacks["join-event"] = self._handle_join
-		self._callbacks["login-event"] = self._handle_login
-		self._callbacks["logout-event"] = self._handle_logout
-		self._callbacks["network-event"] = self._handle_network
-		self._callbacks["nick-event"] = self._handle_nick
-		self._callbacks["edit-message-event"] = self._handle_edit_message
-		self._callbacks["part-event"] = self._handle_part
-		self._callbacks["ping-event"] = self._handle_ping
-		self._callbacks["pm-initiate-event"] = self._handle_pm_initiate
-		self._callbacks["send-event"] = self._handle_send
-		self._callbacks["snapshot-event"] = self._handle_snapshot
+		self._callbacks.add("bounce-event", self._handle_bounce)
+		self._callbacks.add("disconnect-event", self._handle_disconnect)
+		self._callbacks.add("hello-event", self._handle_hello)
+		self._callbacks.add("join-event", self._handle_join)
+		self._callbacks.add("login-event", self._handle_login)
+		self._callbacks.add("logout-event", self._handle_logout)
+		self._callbacks.add("network-event", self._handle_network)
+		self._callbacks.add("nick-event", self._handle_nick)
+		self._callbacks.add("edit-message-event", self._handle_edit_message)
+		self._callbacks.add("part-event", self._handle_part)
+		self._callbacks.add("ping-event", self._handle_ping)
+		self._callbacks.add("pm-initiate-event", self._handle_pm_initiate)
+		self._callbacks.add("send-event", self._handle_send)
+		self._callbacks.add("snapshot-event", self._handle_snapshot)
 	
 	async def _send_packet(self, *args, **kwargs):
 		response = await self._conn.send(*args, **kwargs)
@@ -291,12 +292,10 @@ class Room:
 		self._check_for_errors(packet)
 		
 		ptype = packet.get("type")
-		callback = self._callbacks.get(ptype)
-		if callback:
-			try:
-				await callback(packet)
-			except asyncio.CancelledError as e:
-				logger.info(f"&{self.roomname}: Callback of type {ptype!r} cancelled.")
+		try:
+			await self._callbacks.call(ptype, packet)
+		except asyncio.CancelledError as e:
+			logger.info(f"&{self.roomname}: Callback of type {ptype!r} cancelled.")
 	
 	def _check_for_errors(self, packet):
 		if packet.get("throttled", False):
