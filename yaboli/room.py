@@ -53,12 +53,13 @@ class Room:
 	
 	async def _run(self, task, max_tries=10, delay=60):
 		while not self._stopping:
+			if task.done():
+				task = await self._conn.connect(max_tries=max_tries, delay=delay)
+				if not task:
+					return
+			
 			await task
 			await self.controller.on_disconnected()
-			
-			task = await self._conn.connect(max_tries=max_tries, delay=delay)
-			if not task:
-				return
 		
 		self.stopping = False
 	

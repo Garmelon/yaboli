@@ -33,6 +33,8 @@ class Connection:
 		Returns the task listening for packets, or None if the attempt failed.
 		"""
 		
+		logger.debug(f"Attempting to connect, max_tries={max_tries}")
+		
 		await self.stop()
 		
 		tries_left = max_tries
@@ -147,7 +149,7 @@ class Connection:
 			#else:
 				#logger.debug(f"Deleting task: {task}")
 		#self._spawned_tasks = tasks
-		#self._spawned_tasks = {task for task in self._spawned_tasks if not task.done()} # TODO: Reenable
+		self._spawned_tasks = {task for task in self._spawned_tasks if not task.done()} # TODO: Reenable
 	
 	def _wait_for_response(self, pid):
 		future = asyncio.Future()

@@ -113,9 +113,9 @@ class Controller:
 	
 	async def stop(self):
 		if self.room:
-			logger.info(f"&{self.room.roomname}: Stopping")
+			logger.info(f"@{self.nick}: Stopping")
 			await self.room.stop()
-			logger.debug(f"&{self.room.roomname}: Stopped. Deleting room")
+			logger.debug(f"@{self.nick}: Stopped. Deleting room")
 			self.room = None
 	
 	async def set_nick(self, nick):
