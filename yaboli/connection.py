@@ -1,229 +1,158 @@
+import logging
+logger = logging.getLogger(__name__)
+
+import asyncio
+asyncio.get_event_loop().set_debug(True)
+
 import json
-import time
-import threading
-import websocket
-from websocket import WebSocketException as WSException
+import websockets
+#from websockets import ConnectionClosed
 
-from . import callbacks
+__all__ = ["Connection"]
 
-class Connection():
-	"""
-	Stays connected to a room in its own thread.
-	Callback functions are called when a packet is received.
-	
-	Callbacks:
-		- all the message types from api.euphoria.io
-		  These pass the packet data as argument to the called functions.
-		  The other callbacks don't pass any special arguments.
-		- "connect"
-		- "disconnect"
-		- "stop"
-	"""
-	
-	ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
-	
-	def __init__(self, room, url_format=None):
-		"""
-		room - name of the room to connect to
-		
-		"""
-		
-		self.room = room
-		
-		if not url_format:
-			url_format = self.ROOM_FORMAT
-		self._url = url_format.format(self.room)
-		
-		self._stopping = False
+
+
+class Connection:
+	def __init__(self, url, packet_hook, cookie=None):
+		self.url = url
+		self.cookie = cookie
+		self.packet_hook = packet_hook
 		
 		self._ws = None
-		self._thread = None
-		self._send_id = 0
-		self._callbacks = callbacks.Callbacks()
-		self._id_callbacks = callbacks.Callbacks()
+		self._pid = 0 # successive packet ids
+		self._spawned_tasks = set()
+		self._pending_responses = {}
+		#self._stopping = False
+		self._runtask = None
 	
-	def _connect(self, tries=-1, delay=10):
+	async def connect(self, max_tries=10, delay=60):
 		"""
-		_connect(tries, delay) -> bool
+		success = await connect(max_tries=10, delay=60)
 		
-		tries - maximum number of retries
-		        -1 -> retry indefinitely
-		
-		Returns True on success, False on failure.
-		
-		Connect to the room.
+		Attempt to connect to a room.
+		Returns the task listening for packets, or None if the attempt failed.
 		"""
 		
-		while tries != 0:
+		logger.debug(f"Attempting to connect, max_tries={max_tries}")
+		
+		await self.stop()
+		
+		tries_left = max_tries
+		while tries_left > 0:
+			tries_left -= 1
 			try:
-				self._ws = websocket.create_connection(
-					self._url,
-					enable_multithread=True
-				)
-				
-				self._callbacks.call("connect")
-				
-				return True
-			except WSException:
-				if tries > 0:
-					tries -= 1
-				if tries != 0:
-					time.sleep(delay)
-		return False
+				self._ws = await websockets.connect(self.url, max_size=None)
+			except (websockets.InvalidURI, websockets.InvalidHandshake):
+				self._ws = None
+				if tries_left > 0:
+					await asyncio.sleep(delay)
+			else:
+				self._runtask = asyncio.ensure_future(self._run())
+				return self._runtask
 	
-	def disconnect(self):
+	async def _run(self):
 		"""
-		disconnect() -> None
-		
-		Reconnect to the room.
-		WARNING: To completely disconnect, use stop().
+		Listen for packets and deal with them accordingly.
 		"""
 		
-		if self._ws:
-			self._ws.close()
+		try:
+			while True:
+				await self._handle_next_message()
+		except websockets.ConnectionClosed:
+			pass
+		finally:
+			self._clean_up_futures()
+			self._clean_up_tasks()
+			
+			await self._ws.close() # just to make sure
 			self._ws = None
-		
-		self._callbacks.call("disconnect")
 	
-	def launch(self):
+	async def stop(self):
 		"""
-		launch() -> Thread
-		
-		Connect to the room and spawn a new thread running run.
-		"""
-		
-		if self._connect(tries=1):
-			self._thread = threading.Thread(target=self._run,
-			                                name="{}-{}".format(self.room, int(time.time())))
-			self._thread.start()
-			return self._thread
-		else:
-			self.stop()
-	
-	def _run(self):
-		"""
-		_run() -> None
-		
-		Receive messages.
-		"""
-		
-		while not self._stopping:
-			try:
-				self._handle_json(self._ws.recv())
-			except (WSException, ConnectionResetError):
-				if not self._stopping:
-					self.disconnect()
-					self._connect()
-	
-	def stop(self):
-		"""
-		stop() -> None
-		
-		Close the connection to the room.
-		Joins the thread launched by self.launch().
-		"""
-		
-		self._stopping = True
-		self.disconnect()
-		
-		self._callbacks.call("stop")
-		
-		if self._thread and self._thread != threading.current_thread():
-			self._thread.join()
-	
-	def next_id(self):
-		"""
-		next_id() -> id
-		
-		Returns the id that will be used for the next package.
-		"""
-		
-		return str(self._send_id)
-	
-	def add_callback(self, ptype, callback, *args, **kwargs):
-		"""
-		add_callback(ptype, callback, *args, **kwargs) -> None
-		
-		Add a function to be called when a packet of type ptype is received.
-		"""
-		
-		self._callbacks.add(ptype, callback, *args, **kwargs)
-	
-	def add_id_callback(self, pid, callback, *args, **kwargs):
-		"""
-		add_id_callback(pid, callback, *args, **kwargs) -> None
-		
-		Add a function to be called when a packet with id pid is received.
-		"""
-		
-		self._id_callbacks.add(pid, callback, *args, **kwargs)
-	
-	def add_next_callback(self, callback, *args, **kwargs):
-		"""
-		add_next_callback(callback, *args, **kwargs) -> None
-		
-		Add a function to be called when the answer to the next message sent is received.
-		"""
-		
-		self._id_callbacks.add(self.next_id(), callback, *args, **kwargs)
-	
-	def _handle_json(self, data):
-		"""
-		handle_json(data) -> None
-		
-		Handle incoming 'raw' data.
-		"""
-		
-		packet = json.loads(data)
-		self._handle_packet(packet)
-	
-	def _handle_packet(self, packet):
-		"""
-		_handle_packet(ptype, data) -> None
-		
-		Handle incoming packets
-		"""
-		
-		if "data" in packet:
-			data = packet["data"]
-		else:
-			data = None
-		
-		if "error" in packet:
-			error = packet["error"]
-		else:
-			error = None
-		
-		self._callbacks.call(packet["type"], data, error)
-		
-		if "id" in packet:
-			self._id_callbacks.call(packet["id"], data, error)
-			self._id_callbacks.remove(packet["id"])
-	
-	def _send_json(self, data):
-		"""
-		_send_json(data) -> None
-		
-		Send 'raw' json.
+		Close websocket connection and wait for running task to stop.
 		"""
 		
 		if self._ws:
-			try:
-				self._ws.send(json.dumps(data))
-			except WSException:
-				self.disconnect()
+			await self._ws.close()
+		
+		if self._runtask:
+			await self._runtask
 	
-	def send_packet(self, ptype, **kwargs):
-		"""
-		send_packet(ptype, **kwargs) -> None
+	async def send(self, ptype, data=None, await_response=True):
+		if not self._ws:
+			raise asyncio.CancelledError
 		
-		Send a formatted packet.
-		"""
-		
+		pid = str(self._new_pid())
 		packet = {
 			"type": ptype,
-			"data": kwargs or None,
-			"id": str(self._send_id)
+			"id": pid
 		}
-		self._send_id += 1
-		self._send_json(packet)
+		if data:
+			packet["data"] = data
+		
+		if await_response:
+			wait_for = self._wait_for_response(pid)
+		
+		logging.debug(f"Currently used websocket at self._ws: {self._ws}")
+		await self._ws.send(json.dumps(packet, separators=(',', ':'))) # minimum size
+		
+		if await_response:
+			await wait_for
+			return wait_for.result()
+	
+	def _new_pid(self):
+		self._pid += 1
+		return self._pid
+	
+	async def _handle_next_message(self):
+		response = await self._ws.recv()
+		task = asyncio.ensure_future(self._handle_json(response))
+		self._track_task(task) # will be cancelled when the connection is closed
+	
+	def _clean_up_futures(self):
+		for pid, future in self._pending_responses.items():
+			logger.debug(f"Cancelling future: {future}")
+			future.cancel()
+		self._pending_responses = {}
+	
+	def _clean_up_tasks(self):
+		for task in self._spawned_tasks:
+			if not task.done():
+				logger.debug(f"Cancelling task: {task}")
+				task.cancel()
+			else:
+				logger.debug(f"Task already done: {task}")
+				logger.debug(f"Exception: {task.exception()}")
+		self._spawned_tasks = set()
+	
+	async def _handle_json(self, text):
+		packet = json.loads(text)
+		
+		# Deal with pending responses
+		pid = packet.get("id", None)
+		future = self._pending_responses.pop(pid, None)
+		if future:
+			future.set_result(packet)
+		
+		# Pass packet onto room
+		await self.packet_hook(packet)
+	
+	def _track_task(self, task):
+		self._spawned_tasks.add(task)
+		
+		# only keep running tasks
+		#tasks = set()
+		#for task in self._spawned_tasks:
+			#if not task.done():
+				#logger.debug(f"Keeping task: {task}")
+				#tasks.add(task)
+			#else:
+				#logger.debug(f"Deleting task: {task}")
+		#self._spawned_tasks = tasks
+		self._spawned_tasks = {task for task in self._spawned_tasks if not task.done()} # TODO: Reenable
+	
+	def _wait_for_response(self, pid):
+		future = asyncio.Future()
+		self._pending_responses[pid] = future
+		
+		return future

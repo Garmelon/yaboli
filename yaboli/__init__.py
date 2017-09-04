@@ -1,10 +1,14 @@
-from .bot import Bot
-from .botmanager import BotManager
-from .callbacks import Callbacks
-from .connection import Connection
-from .exceptions import *
-from .session import Session
-from .message import Message
-from .sessions import Sessions
-from .messages import Messages
-from .room import Room
+import logging
+#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+from .bot import *
+from .connection import *
+from .controller import *
+from .room import *
+from .utils import *
+
+__all__ = connection.__all__ + room.__all__ + controller.__all__ + utils.__all__

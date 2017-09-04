@@ -1,617 +1,545 @@
-import time
+import asyncio
+import logging
+from .callbacks import *
+from .connection import *
+from .utils import *
 
-from . import connection
-from . import message
-from . import messages
-from . import session
-from . import sessions
-from . import callbacks
+logger = logging.getLogger(__name__)
+__all__ = ["Room"]
 
-class Room():
-	"""
-	Connects to and provides more abstract access to a room on euphoria.
+
+
+class Room:
+	ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
+	HUMAN_FORMAT = f"{ROOM_FORMAT}?h=1"
 	
-	callback (values passed)     - description
-	----------------------------------------------------------------------------------
-	delete   (message)           - message has been deleted
-	edit     (message)           - message has been edited
-	identity                     - own session or nick has changed
-	join     (session)           - user has joined the room
-	message  (message)           - message has been sent
-	messages                     - message data has changed
-	nick     (session, old, new) - user has changed their nick
-	part     (session)           - user has left the room
-	ping                         - ping event has happened
-	room                         - room info has changed
-	sessions                     - session data has changed
-	change                       - room has been changed
-	"""
-	
-	def __init__(self, room=None, nick=None, password=None, message_limit=500):
-		"""
-		room          - name of the room to connect to
-		nick          - nick to assume, None -> no nick
-		password      - room password (in case the room is private)
-		message_limit - maximum amount of messages that will be stored at a time
-		                None - no limit
-		"""
+	def __init__(self, roomname, controller, human=False, cookie=None):
+		self.roomname = roomname
+		self.controller = controller
+		self.human = human
+		self.cookie = cookie
 		
-		self.room = room
-		self.password = password
-		self.room_is_private = None
-		self.pm_with_nick = None
-		self.pm_with_user = None
-		
-		self.nick = nick
+		# Keeps track of sessions, but not messages, since they might be dealt
+		# with differently by different controllers.
+		# If you need to keep track of messages, use utils.Log.
 		self.session = None
-		self.message_limit = message_limit
+		self.account = None
+		self.listing = Listing()
 		
-		self.ping_last = 0
-		self.ping_next = 0
-		self.ping_offset = 0 # difference between server and local time
-		
-		self._messages = None
-		self._sessions = None
-		
-		self._callbacks = callbacks.Callbacks()
-		
-		self._con = None
-		
-		if self.room:
-			self.change(self.room, password=self.password)
-	
-	def launch(self):
-		"""
-		launch() -> Thread
-		
-		Open connection in a new thread (see connection.Connection.launch).
-		"""
-		
-		return self._con.launch()
-	
-	def stop(self):
-		"""
-		stop() -> None
-		
-		Close connection to room.
-		"""
-		
-		self._con.stop()
-	
-	def change(self, room, password=None):
-		"""
-		change(room) -> None
-		
-		Leave current room (if already connected) and join new room.
-		Clears all messages and sessions.
-		A call to launch() is necessary to start a new thread again.
-		"""
-		
-		if self._con:
-			self._con.stop()
-		
-		self.room = room
-		self.password = password
+		# Various room information
+		self.account_has_access = None
+		self.account_email_verified = None
 		self.room_is_private = None
+		self.version = None # the version of the code being run and served by the server
 		self.pm_with_nick = None
-		self.pm_with_user = None
+		self.pm_with_user_id = None
 		
-		self.session = None
+		self._callbacks = Callbacks()
+		self._add_callbacks()
 		
-		self.ping_last = 0
-		self.ping_next = 0
-		self.ping_offset = 0 # difference between server and local time
+		self._stopping = False
+		self._runtask = None
 		
-		self._messages = messages.Messages(message_limit=self.message_limit)
-		self._sessions = sessions.Sessions()
-		
-		self._con = connection.Connection(self.room)
-		
-		self._con.add_callback("bounce-event",       self._handle_bounce_event)
-		self._con.add_callback("disconnect-event",   self._handle_disconnect_event)
-		self._con.add_callback("hello-event",        self._handle_hello_event)
-		self._con.add_callback("join-event",         self._handle_join_event)
-		self._con.add_callback("network-event",      self._handle_network_event)
-		self._con.add_callback("nick-event",         self._handle_nick_event)
-		self._con.add_callback("edit-message-event", self._handle_edit_message_event)
-		self._con.add_callback("part-event",         self._handle_part_event)
-		self._con.add_callback("ping-event",         self._handle_ping_event)
-		self._con.add_callback("send-event",         self._handle_send_event)
-		self._con.add_callback("snapshot-event",     self._handle_snapshot_event)
-		
-		self._callbacks.call("change")
-	
-	def add_callback(self, event, callback, *args, **kwargs):
-		"""
-		add_callback(ptype, callback, *args, **kwargs) -> None
-		
-		Add a function to be called when a certain event happens.
-		"""
-		
-		self._callbacks.add(event, callback, *args, **kwargs)
-	
-	def get_msg(self, mid):
-		"""
-		get_msg(message_id) -> Message
-		
-		Returns the message with the given id, if found.
-		"""
-		
-		return self._messages.get(mid)
-	
-	def get_msg_parent(self, mid):
-		"""
-		get_msg_parent(message_id) -> Message
-		
-		Returns the message's parent, if found.
-		"""
-		
-		return self._messages.get_parent(mid)
-	
-	def get_msg_children(self, mid):
-		"""
-		get_msg_children(message_id) -> list
-		
-		Returns a sorted list of children of the given message, if found.
-		"""
-		
-		return self._messages.get_children(mid)
-	
-	def get_msg_top_level(self):
-		"""
-		get_msg_top_level() -> list
-		
-		Returns a sorted list of top-level messages.
-		"""
-		
-		return self._messages.get_top_level()
-	
-	def get_msg_oldest(self):
-		"""
-		get_msg_oldest() -> Message
-		
-		Returns the oldest message, if found.
-		"""
-		
-		return self._messages.get_oldest()
-	
-	def get_msg_youngest(self):
-		"""
-		get_msg_youngest() -> Message
-		
-		Returns the youngest message, if found.
-		"""
-		
-		return self._messages.get_youngest()
-	
-	def get_session(self, sid):
-		"""
-		get_session(session_id) -> Session
-		
-		Returns the session with that id.
-		"""
-		
-		return self._sessions.get(sid)
-	
-	def get_sessions(self):
-		"""
-		get_sessions() -> list
-		
-		Returns the full list of sessions.
-		"""
-		
-		return self._sessions.get_all()
-	
-	def get_people(self):
-		"""
-		get_people() -> list
-		
-		Returns a list of all non-bot and non-lurker sessions.
-		"""
-		
-		return self._sessions.get_people()
-	
-	def get_accounts(self):
-		"""
-		get_accounts() -> list
-		
-		Returns a list of all logged-in sessions.
-		"""
-		
-		return self._sessions.get_accounts()
-	
-	def get_agents(self):
-		"""
-		get_agents() -> list
-		
-		Returns a list of all sessions who are not signed into an account and not bots or lurkers.
-		"""
-		
-		return self._sessions.get_agents()
-	
-	def get_bots(self):
-		"""
-		get_bots() -> list
-		
-		Returns a list of all bot sessions.
-		"""
-		
-		return self._sessions.get_bots()
-	
-	def get_lurkers(self):
-		"""
-		get_lurkers() -> list
-		
-		Returns a list of all lurker sessions.
-		"""
-		
-		return self._sessions.get_lurkers()
-	
-	def set_nick(self, nick):
-		"""
-		set_nick(nick) -> None
-		
-		Change your nick.
-		"""
-		
-		self.nick = nick
-		
-		if not self.session or self.session.name != self.nick:
-			self._con.add_next_callback(self._handle_nick_reply)
-			self._con.send_packet("nick", name=nick)
-	
-	def mentionable(self, nick=None):
-		"""
-		mentionable()
-		
-		A mentionable version of the nick.
-		The nick defaults to the bot's nick.
-		"""
-		
-		if nick is None:
-			nick = self.nick
-		
-		return "".join(c for c in nick if not c in ".!?;&<'\"" and not c.isspace())
-	
-	def send_message(self, content, parent=None):
-		"""
-		send_message(content, parent) -> None
-		
-		Send a message.
-		"""
-		
-		self._con.add_next_callback(self._handle_send_reply)
-		self._con.send_packet("send", content=content, parent=parent)
-	
-	def authenticate(self, password=None):
-		"""
-		authenticate(passsword) -> None
-		
-		Try to authenticate so you can enter the room.
-		"""
-		
-		self.password = password
-		
-		self._con.add_next_callback(self._handle_auth_reply)
-		self._con.send_packet("auth", type="passcode", passcode=self.password)
-	
-	def update_sessions(self):
-		"""
-		update_sessions() -> None
-		
-		Resets and then updates the list of sessions.
-		"""
-		
-		self._con.add_next_callback(self._handle_who_reply)
-		self._con.send_packet("who")
-	
-	def load_msgs(self, number=50):
-		"""
-		load_msgs(number) -> None
-		
-		Request a certain number of older messages from the server.
-		"""
-		
-		self._con.add_next_callback(self._handle_log_reply)
-		self._con.send_packet("log", n=number, before=self.get_msg_oldest().id)
-	
-	def load_msg(self, mid):
-		"""
-		load_msg(message_id) -> None
-		
-		Request an untruncated version of the message with that id.
-		"""
-		
-		self._con.add_next_callback(self._handle_get_message_reply)
-		self._con.send_packet("get-message", id=mid)
-	
-	# ----- HANDLING OF EVENTS -----
-	
-	def _handle_connect(self):
-		"""
-		TODO
-		"""
-		
-		self._callbacks.call("connect")
-	
-	def _handle_disconnect(self):
-		"""
-		TODO
-		"""
-		
-		self._callbacks.call("disconnect")
-	
-	def _handle_stop(self):
-		"""
-		TODO
-		"""
-		
-		self._callbacks.call("stop")
-	
-	def _handle_bounce_event(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "bounce-event", error)
-			self.stop()
-			return
-		
-		if self.password is not None:
-			self.authenticate(self.password)
+		if human:
+			url = self.HUMAN_FORMAT.format(self.roomname)
 		else:
-			self.stop()
+			url = self.ROOM_FORMAT.format(self.roomname)
+		self._conn = Connection(url, self._handle_packet, self.cookie)
 	
-	def _handle_disconnect_event(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "disconnect-event", error)
-			self.stop()
-			return
-		
-		self._con.disconnect()
+	async def connect(self, max_tries=10, delay=60):
+		task = await self._conn.connect(max_tries=1)
+		if task:
+			self._runtask = asyncio.ensure_future(self._run(task, max_tries=max_tries, delay=delay))
+			return self._runtask
 	
-	def _handle_hello_event(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "hello-event", error)
-			self.stop()
-			return
-		
-		self.session = session.Session.from_data(data["session"])
-		self._sessions.add(self.session)
-		self._callbacks.call("identity")
-		self._callbacks.call("sessions")
-		
-		self.room_is_private = data["room_is_private"]
-		self._callbacks.call("room")
-	
-	def _handle_join_event(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "join-event", error)
-			self.update_sessions()
-			return
-		
-		ses = session.Session.from_data(data)
-		self._sessions.add(ses)
-		self._callbacks.call("join", ses)
-		self._callbacks.call("sessions")
-	
-	def _handle_network_event(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "network-event", error)
-			return
-		
-		if data["type"] == "partition":
-			self._sessions.remove_on_network_partition(data["server_id"], data["server_era"])
-			self._callbacks.call("sessions")
-	
-	def _handle_nick_event(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "nick-event", error)
-			self.update_sessions()
-			return
-		
-		ses = self.get_session(data["session_id"])
-		if ses:
-			ses.name = data["to"]
-			self._callbacks.call("nick", ses, data["from"], data["to"])
-			self._callbacks.call("sessions")
-	
-	def _handle_edit_message_event(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "edit-message-event", error)
-			return
-		
-		msg = message.Message.from_data(data)
-		if msg:
-			self._messages.add(msg)
+	async def _run(self, task, max_tries=10, delay=60):
+		while not self._stopping:
+			if task.done():
+				task = await self._conn.connect(max_tries=max_tries, delay=delay)
+				if not task:
+					return
 			
-			if msg.deleted:
-				self._callbacks.call("delete", msg)
-			elif msg.edited:
-				self._callbacks.call("edit", msg)
+			await task
+			await self.controller.on_disconnected()
+		
+		self.stopping = False
+	
+	async def stop(self):
+		self._stopping = True
+		await self._conn.stop()
+		
+		if self._runtask:
+			await self._runtask
+	
+	
+	
+	# CATEGORY: SESSION COMMANDS
+	
+	async def auth(self, atype, passcode=None):
+		"""
+		success, reason=None = await auth(atype, passcode=None)
+		
+		  From api.euphoria.io:
+		The auth command attempts to join a private room. It should be sent in
+		response to a bounce-event at the beginning of a session.
+		
+		The auth-reply packet reports whether the auth command succeeded.
+		"""
+		
+		data = {"type": atype}
+		if passcode:
+			data["passcode"] = passcode
 			
-			self._callbacks.call("messages")
+		response = await self._send_packet("auth", data)
+		rdata = response.get("data")
+		
+		success = rdata.get("success")
+		reason = rdata.get("reason", None)
+		return success, reason
 	
-	def _handle_part_event(self, data, error):
+	async def ping_reply(self, time):
 		"""
-		TODO
+		await ping_reply(time)
+		
+		  From api.euphoria.io:
+		The ping command initiates a client-to-server ping. The server will
+		send back a ping-reply with the same timestamp as soon as possible.
+		
+		ping-reply is a response to a ping command or ping-event.
 		"""
 		
-		if error:
-			self._callbacks.call("error", "part-event", error)
-			self.update_sessions()
-			return
+		data = {"time": time}
+		await self._conn.send("ping-reply", data, await_response=False)
+	
+	# CATEGORY: CHAT ROOM COMMANDS
+	
+	async def get_message(self, message_id):
+		"""
+		message = await get_message(message_id)
 		
-		ses = session.Session.from_data(data)
-		if ses:
-			self._sessions.remove(ses.session_id)
+		  From api.euphoria.io:
+		The get-message command retrieves the full content of a single message
+		in the room.
+		
+		get-message-reply returns the message retrieved by get-message.
+		"""
+		
+		data = {"id": message_id}
+		
+		response = await self._send_packet("get-message", data)
+		rdata = response.get("data")
+		
+		message = Message.from_dict(rdata)
+		return message
+	
+	async def log(self, n, before=None):
+		"""
+		log, before=None = await log(n, before=None)
+		
+		  From api.euphoria.io:
+		The log command requests messages from the room’s message log. This can
+		be used to supplement the log provided by snapshot-event (for example,
+		when scrolling back further in history).
+		
+		The log-reply packet returns a list of messages from the room’s message
+		"""
+		
+		data = {"n": n}
+		if before:
+			data["before"] = before
 			
-			self._callbacks.call("part", ses)
-			self._callbacks.call("sessions")
+		response = await self._send_packet("log", data)
+		rdata = response.get("data")
+		
+		messages = [Message.from_dict(d) for d in rdata.get("log")]
+		before = rdata.get("before", None)
+		return messages, before
 	
-	def _handle_ping_event(self, data, error):
+	async def nick(self, name):
 		"""
-		TODO
+		session_id, user_id, from_nick, to_nick = await nick(name)
+		
+		  From api.euphoria.io:
+		The nick command sets the name you present to the room. This name
+		applies to all messages sent during this session, until the nick
+		command is called again.
+		
+		nick-reply confirms the nick command. It returns the session’s former
+		and new names (the server may modify the requested nick).
 		"""
 		
-		if error:
-			self._callbacks.call("error", "ping-event", error)
-			return
+		data = {"name": name}
 		
-		self.ping_last = data["time"]
-		self.ping_next = data["next"]
-		self.ping_offset = self.ping_last - time.time()
+		response = await self._send_packet("nick", data)
+		rdata = response.get("data")
 		
-		self._con.send_packet("ping-reply", time=self.ping_last)
-		self._callbacks.call("ping")
+		session_id = rdata.get("session_id")
+		user_id = rdata.get("id")
+		from_nick = rdata.get("from")
+		to_nick = rdata.get("to")
+		
+		# update self.session
+		self.session.nick = to_nick
+		
+		return session_id, user_id, from_nick, to_nick
 	
-	def _handle_send_event(self, data, error):
+	async def pm_initiate(self, user_id):
 		"""
-		TODO
+		pm_id, to_nick = await pm_initiate(user_id)
+		
+		  From api.euphoria.io:
+		The pm-initiate command constructs a virtual room for private messaging
+		between the client and the given UserID.
+		
+		The pm-initiate-reply provides the PMID for the requested private
+		messaging room.
 		"""
 		
-		if error:
-			self._callbacks.call("error", "send-event", error)
-			return
+		data = {"user_id": user_id}
 		
-		msg = message.Message.from_data(data)
-		self._callbacks.call("message", msg)
+		response = await self._send_packet("pm-initiate", data)
+		rdata = response.get("data")
 		
-		self._messages.add(msg)
-		self._callbacks.call("messages")
+		pm_id = rdata.get("pm_id")
+		to_nick = rdata.get("to_nick")
+		return pm_id, to_nick
 	
-	def _handle_snapshot_event(self, data, error):
+	async def send(self, content, parent=None):
 		"""
-		TODO
+		message = await send(content, parent=None)
+		
+		  From api.euphoria.io:
+		The send command sends a message to a room. The session must be
+		successfully joined with the room. This message will be broadcast to
+		all sessions joined with the room.
+		
+		If the room is private, then the message content will be encrypted
+		before it is stored and broadcast to the rest of the room.
+		
+		The caller of this command will not receive the corresponding
+		send-event, but will receive the same information in the send-reply.
 		"""
 		
-		if error:
-			self._callbacks.call("error", "snapshot-event", error)
-			self.stop()
-			return
+		data = {"content": content}
+		if parent:
+			data["parent"] = parent
 		
-		self.set_nick(self.nick)
+		response = await self._send_packet("send", data)
+		rdata = response.get("data")
 		
-		if "pm_with_nick" in data or "pm_with_user_id" in data:
-			if "pm_with_nick" in data:
-				self.pm_with_nick = data["pm_with_nick"]
-			if "pm_with_user_id" in data:
-				self.pm_with_user_id = data["pm_with_user_id"]
-			self._callbacks.call("room")
-		
-		self._sessions.remove_all()
-		for sesdata in data["listing"]:
-			self._sessions.add_from_data(sesdata)
-		self._callbacks.call("sessions")
-		
-		self._messages.remove_all()
-		for msgdata in data["log"]:
-			self._messages.add_from_data(msgdata)
-		self._callbacks.call("messages")
+		message = Message.from_dict(rdata)
+		return message
 	
-	# ----- HANDLING OF REPLIES -----
+	async def who(self):
+		"""
+		sessions = await who()
+		
+		  From api.euphoria.io:
+		The who command requests a list of sessions currently joined in the
+		room.
+		
+		The who-reply packet lists the sessions currently joined in the room.
+		"""
+		
+		response = await self._send_packet("who")
+		rdata = response.get("data")
+		
+		sessions = [Session.from_dict(d) for d in rdata.get("listing")]
+		
+		# update self.listing
+		self.listing = Listing()
+		for session in sessions:
+			self.listing.add(session)
+		
+		return sessions
 	
-	def _handle_auth_reply(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "auth-reply", error)
-			self.stop()
-			return
-		
-		if not data["success"]:
-			self._con.stop()
+	# CATEGORY: ACCOUNT COMMANDS
+	# NYI, and probably never will
 	
-	def _handle_get_message_reply(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "get-message-reply", error)
-			return
-		
-		self._messages.add_from_data(data)
-		self._callbacks.call("messages")
+	# CATEGORY: ROOM HOST COMMANDS
+	# NYI, and probably never will
 	
-	def _handle_log_reply(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "log-reply", error)
-			return
-		
-		for msgdata in data["log"]:
-			self._messages.add_from_data(msgdata)
-		self._callbacks.call("messages")
+	# CATEGORY: STAFF COMMANDS
+	# NYI, and probably never will
 	
-	def _handle_nick_reply(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "nick-reply", error)
-			return
-		
-		if "to" in data:
-			self.session.name = self.nick
-			self._callbacks.call("identity")
-			
-			if data["to"] != self.nick:
-				self.set_nick(self.nick)
 	
-	def _handle_send_reply(self, data, error):
-		"""
-		TODO
-		"""
-		
-		if error:
-			self._callbacks.call("error", "send-reply", error)
-			return
-		
-		self._messages.add_from_data(data)
-		self._callbacks.call("messages")
 	
-	def _handle_who_reply(self, data, error):
+	# All the private functions for dealing with stuff
+	
+	def _add_callbacks(self):
+		self._callbacks.add("bounce-event", self._handle_bounce)
+		self._callbacks.add("disconnect-event", self._handle_disconnect)
+		self._callbacks.add("hello-event", self._handle_hello)
+		self._callbacks.add("join-event", self._handle_join)
+		self._callbacks.add("login-event", self._handle_login)
+		self._callbacks.add("logout-event", self._handle_logout)
+		self._callbacks.add("network-event", self._handle_network)
+		self._callbacks.add("nick-event", self._handle_nick)
+		self._callbacks.add("edit-message-event", self._handle_edit_message)
+		self._callbacks.add("part-event", self._handle_part)
+		self._callbacks.add("ping-event", self._handle_ping)
+		self._callbacks.add("pm-initiate-event", self._handle_pm_initiate)
+		self._callbacks.add("send-event", self._handle_send)
+		self._callbacks.add("snapshot-event", self._handle_snapshot)
+	
+	async def _send_packet(self, *args, **kwargs):
+		response = await self._conn.send(*args, **kwargs)
+		self._check_for_errors(response)
+		
+		return response
+	
+	async def _handle_packet(self, packet):
+		self._check_for_errors(packet)
+		
+		ptype = packet.get("type")
+		try:
+			await self._callbacks.call(ptype, packet)
+		except asyncio.CancelledError as e:
+			logger.info(f"&{self.roomname}: Callback of type {ptype!r} cancelled.")
+	
+	def _check_for_errors(self, packet):
+		if packet.get("throttled", False):
+			logger.warn(f"&{self.roomname}: Throttled for reason: {packet.get('throttled_reason', 'no reason')!r}")
+		
+		if "error" in packet:
+			raise ResponseError(response.get("error"))
+	
+	async def _handle_bounce(self, packet):
 		"""
-		TODO
+		  From api.euphoria.io:
+		A bounce-event indicates that access to a room is denied.
 		"""
 		
-		if error:
-			self._callbacks.call("error", "who-reply", error)
-			return
+		data = packet.get("data")
 		
-		self._sessions.remove_all()
-		for sesdata in data["listing"]:
-			self._sessions.add_from_data(sesdata)
-		self._callbacks.call("sessions")
+		await self.controller.on_bounce(
+			reason=data.get("reason", None),
+			auth_options=data.get("auth_options", None),
+			agent_id=data.get("agent_id", None),
+			ip=data.get("ip", None)
+		)
+	
+	async def _handle_disconnect(self, packet):
+		"""
+		  From api.euphoria.io:
+		A disconnect-event indicates that the session is being closed. The
+		client will subsequently be disconnected.
+		
+		If the disconnect reason is “authentication changed”, the client should
+		immediately reconnect.
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_disconnect(data.get("reason"))
+	
+	async def _handle_hello(self, packet):
+		"""
+		  From api.euphoria.io:
+		A hello-event is sent by the server to the client when a session is
+		started. It includes information about the client’s authentication and
+		associated identity.
+		"""
+		
+		data = packet.get("data")
+		self.session = Session.from_dict(data.get("session"))
+		self.room_is_private = data.get("room_is_private")
+		self.version = data.get("version")
+		self.account = data.get("account", None)
+		self.account_has_access = data.get("account_has_access", None)
+		self.account_email_verified = data.get("account_email_verified", None)
+		
+		await self.controller.on_hello(
+			data.get("id"),
+			self.session,
+			self.room_is_private,
+			self.version,
+			account=self.account,
+			account_has_access=self.account_has_access,
+			account_email_verified=self.account_email_verified
+		)
+	
+	async def _handle_join(self, packet):
+		"""
+		  From api.euphoria.io:
+		A join-event indicates a session just joined the room.
+		"""
+		
+		data = packet.get("data")
+		session = Session.from_dict(data)
+		
+		# update self.listing
+		self.listing.add(session)
+		
+		await self.controller.on_join(session)
+	
+	async def _handle_login(self, packet):
+		"""
+		  From api.euphoria.io:
+		The login-event packet is sent to all sessions of an agent when that
+		agent is logged in (except for the session that issued the login
+		command).
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_login(data.get("account_id"))
+	
+	async def _handle_logout(self, packet):
+		"""
+		  From api.euphoria.io:
+		The logout-event packet is sent to all sessions of an agent when that
+		agent is logged out (except for the session that issued the logout
+		command).
+		"""
+		
+		await self.controller.on_logout()
+	
+	async def _handle_network(self, packet):
+		"""
+		  From api.euphoria.io:
+		A network-event indicates some server-side event that impacts the
+		presence of sessions in a room.
+		
+		If the network event type is partition, then this should be treated as
+		a part-event for all sessions connected to the same server id/era
+		combo.
+		"""
+		
+		data = packet.get("data")
+		server_id = data.get("server_id")
+		server_era = data.get("server_era")
+		
+		# update self.listing
+		self.listing.remove_combo(server_id, server_era)
+		
+		await self.controller.on_network(server_id, server_era)
+	
+	async def _handle_nick(self, packet):
+		"""
+		  From api.euphoria.io:
+		nick-event announces a nick change by another session in the room.
+		"""
+		
+		data = packet.get("data")
+		session_id = data.get("session_id")
+		to_nick = data.get("to")
+		
+		# update self.listing
+		session = self.listing.by_sid(session_id)
+		if session:
+			session.nick = to_nick
+		
+		await self.controller.on_nick(
+			session_id,
+			data.get("id"),
+			data.get("from"),
+			to_nick
+		)
+	
+	async def _handle_edit_message(self, packet):
+		"""
+		  From api.euphoria.io:
+		An edit-message-event indicates that a message in the room has been
+		modified or deleted. If the client offers a user interface and the
+		indicated message is currently displayed, it should update its display
+		accordingly.
+		
+		The event packet includes a snapshot of the message post-edit.
+		"""
+		
+		data = packet.get("data")
+		message = Message.from_dict(data)
+		
+		await self.controller.on_edit_message(message)
+	
+	async def _handle_part(self, packet):
+		"""
+		  From api.euphoria.io:
+		A part-event indicates a session just disconnected from the room.
+		"""
+		
+		data = packet.get("data")
+		session = Session.from_dict(data)
+		
+		# update self.listing
+		self.listing.remove(session.session_id)
+		
+		await self.controller.on_part(session)
+	
+	async def _handle_ping(self, packet):
+		"""
+		  From api.euphoria.io:
+		A ping-event represents a server-to-client ping. The client should send
+		back a ping-reply with the same value for the time field as soon as
+		possible (or risk disconnection).
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_ping(
+			data.get("time"),
+			data.get("next")
+		)
+	
+	async def _handle_pm_initiate(self, packet):
+		"""
+		  From api.euphoria.io:
+		The pm-initiate-event informs the client that another user wants to
+		chat with them privately.
+		"""
+		
+		data = packet.get("data")
+		
+		await self.controller.on_pm_initiate(
+			data.get("from"),
+			data.get("from_nick"),
+			data.get("from_room"),
+			data.get("pm_id")
+		)
+	
+	async def _handle_send(self, packet):
+		"""
+		  From api.euphoria.io:
+		A send-event indicates a message received by the room from another
+		session.
+		"""
+		
+		data = packet.get("data")
+		message = Message.from_dict(data)
+		
+		await self.controller.on_send(message)
+	
+	async def _handle_snapshot(self, packet):
+		"""
+		  From api.euphoria.io:
+		A snapshot-event indicates that a session has successfully joined a
+		room. It also offers a snapshot of the room’s state and recent history.
+		"""
+		
+		data = packet.get("data")
+		
+		sessions = [Session.from_dict(d) for d in data.get("listing")]
+		messages = [Message.from_dict(d) for d in data.get("log")]
+		
+		# update self.listing
+		for session in sessions:
+			self.listing.add(session)
+		
+		self.session.nick = data.get("nick", None)
+		
+		self.pm_with_nick = data.get("pm_with_nick", None),
+		self.pm_with_user_id = data.get("pm_with_user_id", None)
+		
+		await self.controller.on_connected()
+		
+		await self.controller.on_snapshot(
+			data.get("identity"),
+			data.get("session_id"),
+			self.version,
+			sessions, # listing
+			messages, # log
+			nick=self.session.nick,
+			pm_with_nick=self.pm_with_nick,
+			pm_with_user_id=self.pm_with_user_id
+		)
