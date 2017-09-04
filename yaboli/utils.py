@@ -1,8 +1,10 @@
 import asyncio
+import time
 
 __all__ = [
 	"run_controller",
 	"mention", "mention_reduced", "similar",
+	"format_time", "format_time_delta",
 	"Session", "Listing",
 	"Message", "Log",
 	"ResponseError"
@@ -30,6 +32,41 @@ def mention_reduced(nick):
 
 def similar(nick1, nick2):
 	return mention_reduced(nick1) == mention_reduced(nick2)
+
+def format_time(timestamp):
+	return time.strftime(
+		"%Y-%m-%d %H:%M:%S UTC",
+		time.gmtime(timestamp)
+	)
+
+def format_time_delta(delta):
+	if delta < 0:
+		result = "-"
+	else:
+		result = ""
+	
+	delta = int(delta)
+	
+	second = 1
+	minute = second*60
+	hour = minute*60
+	day = hour*24
+	
+	if delta >= day:
+		result += f"{delta//day}d "
+		delta = delta%day
+	
+	if delta >= hour:
+		result += f"{delta//hour}h "
+		delta = delta%day
+	
+	if delta >= minute:
+		result += f"{delta//minute}m "
+		delta = delta%minute
+	
+	result += f"{delta}s"
+	
+	return result
 
 class Session:
 	def __init__(self, user_id, nick, server_id, server_era, session_id, is_staff=None,

@@ -1,8 +1,10 @@
 import asyncio
 import logging
 import re
+import time
 from .callbacks import *
 from .controller import *
+from .utils import *
 
 logger = logging.getLogger(__name__)
 __all__ = ["Bot"]
@@ -17,8 +19,15 @@ class Bot(Controller):
 	def __init__(self, nick):
 		super().__init__(nick)
 		
+		self.start_time = time.time()
+		
 		self._callbacks = Callbacks()
 		self.register_default_callbacks()
+		
+		# settings (modify in your bot's __init__)
+		self.general_help = None # None -> does not respond to general help
+		self.killable = True
+		self.kill_message = "/me *poof*" # how to respond to !kill, whether killable or not
 	
 	def register_callback(self, event, callback, specific=True):
 		self._callbacks.add((event, specific), callback)
@@ -88,9 +97,10 @@ class Bot(Controller):
 					arg += character
 			elif character in "'\"":
 				quote = character
-			elif character.isspace() and len(arg) > 0:
-				args.append(arg)
-				arg = ""
+			elif character.isspace():
+				if len(arg) > 0:
+					args.append(arg)
+					arg = ""
 			else:
 				arg += character
 				
@@ -133,6 +143,34 @@ class Bot(Controller):
 	def register_default_callbacks(self):
 		self.register_callback("ping", self.command_ping)
 		self.register_callback("ping", self.command_ping, specific=False)
+		self.register_callback("help", self.command_help)
+		self.register_callback("help", self.command_help_general, specific=False)
+		self.register_callback("uptime", self.command_uptime)
+		self.register_callback("kill", self.command_kill)
+		# TODO: maybe !restart command
 	
 	async def command_ping(self, message, args):
 		await self.room.send("Pong!", message.message_id)
+	
+	async def command_help(self, message, args):
+		await self.room.send("<placeholder help>", message.message_id)
+	
+	async def command_help_general(self, message, args):
+		if self.general_help is not None:
+			await self.room.send(self.general_help, message.message_id)
+	
+	async def command_uptime(self, message, args):
+		now = time.time()
+		startformat = format_time(self.start_time)
+		deltaformat = format_time_delta(now - self.start_time)
+		text = f"/me has been up since {startformat} ({deltaformat})"
+		await self.room.send(text, message.message_id)
+	
+	async def command_kill(self, message, args):
+		logging.warn(f"Kill attempt in &{self.room.roomname}: {message.content!r}")
+		
+		if self.kill_message is not None:
+			await self.room.send(self.kill_message, message.message_id)
+		
+		if self.killable:
+			await self.stop()
