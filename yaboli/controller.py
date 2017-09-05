@@ -121,6 +121,7 @@ class Controller:
 	async def set_nick(self, nick):
 		if nick != self.nick:
 			_, _, _, to_nick = await self.room.nick(nick)
+			self.nick = to_nick
 			
 			if to_nick != nick:
 				logger.warn(f"&{self.room.roomname}: Could not set nick to {nick!r}, set to {to_nick!r} instead.")
