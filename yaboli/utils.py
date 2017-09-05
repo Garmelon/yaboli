@@ -150,21 +150,29 @@ class Listing:
 	def by_uid(self, user_id):
 		return [ses for ses in self._sessions if ses.user_id == user_id]
 	
-	def get_people(self):
-		return {uid: ses for uid, ses in self._sessions.items()
-		        if ses.client_type in ["agent", "account"]}
+	def get(self, types=["agent", "account", "bot"], lurker=None):
+		sessions = []
+		for uid, ses in self._sessions.items():
+			if ses.client_type not in types:
+				continue
+			
+			is_lurker = not ses.nick # "" or None
+			if lurker is None or lurker == is_lurker:
+				sessions.append(ses)
+		
+		return sessions
 	
-	def get_accounts(self):
-		return {uid: ses for uid, ses in self._sessions.items()
-		        if ses.client_type is "account"}
+	#def get_people(self):
+		#return self.get(types=["agent", "account"])
 	
-	def get_agents(self):
-		return {uid: ses for uid, ses in self._sessions.items()
-		        if ses.client_type is "agent"}
+	#def get_accounts(self):
+		#return self.get(types=["account"])
 	
-	def get_bots(self):
-		return {uid: ses for uid, ses in self._sessions.items()
-		        if ses.client_type is "bot"}
+	#def get_agents(self):
+		#return self.get(types=["agent"])
+	
+	#def get_bots(self):
+		#return self.get(types=["bot"])
 
 class Message():
 	def __init__(self, message_id, time, sender, content, parent=None, previous_edit_id=None,
