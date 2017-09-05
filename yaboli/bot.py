@@ -19,6 +19,7 @@ class Bot(Controller):
 	def __init__(self, nick):
 		super().__init__(nick)
 		
+		self.restarting = False # whoever runs the bot can check if a restart is necessary
 		self.start_time = time.time()
 		
 		self._callbacks = Callbacks()
@@ -26,11 +27,25 @@ class Bot(Controller):
 		
 		# settings (modify in your bot's __init__)
 		self.general_help = None # None -> does not respond to general help
+		self.specific_help = "No help available"
 		self.killable = True
 		self.kill_message = "/me *poof*" # how to respond to !kill, whether killable or not
+		self.restartable = True
+		self.restart_message = "/me temporary *poof*" # how to respond to !restart, whether restartable or not
 	
 	def register_callback(self, event, callback, specific=True):
 		self._callbacks.add((event, specific), callback)
+	
+	async def restart(self):
+		# After calling this, the bot is stopped, not yet restarted.
+		self.restarting = True
+		await self.stop()
+	
+	def noargs(func):
+		async def wrapper(self, message, args):
+			if not args:
+				return await func(self, message)
+		return wrapper
 	
 	async def on_send(self, message):
 		parsed = self.parse_message(message.content)
@@ -138,7 +153,7 @@ class Bot(Controller):
 	
 	
 	
-	# BOTRULEZ COMMANDS
+	# BOTRULEZ AND YABOLI-SPECIFIC COMMANDS
 	
 	def register_default_callbacks(self):
 		self.register_callback("ping", self.command_ping)
@@ -147,19 +162,24 @@ class Bot(Controller):
 		self.register_callback("help", self.command_help_general, specific=False)
 		self.register_callback("uptime", self.command_uptime)
 		self.register_callback("kill", self.command_kill)
-		# TODO: maybe !restart command
+		self.register_callback("restart", self.command_restart)
 	
-	async def command_ping(self, message, args):
+	@noargs
+	async def command_ping(self, message):
 		await self.room.send("Pong!", message.message_id)
 	
-	async def command_help(self, message, args):
-		await self.room.send("<placeholder help>", message.message_id)
+	@noargs # TODO: specific command help (!help @bot ping)
+	async def command_help(self, message):
+		if self.specific_help:
+			await self.room.send(self.specific_help, message.message_id)
 	
-	async def command_help_general(self, message, args):
+	@noargs
+	async def command_help_general(self, message):
 		if self.general_help is not None:
 			await self.room.send(self.general_help, message.message_id)
 	
-	async def command_uptime(self, message, args):
+	@noargs
+	async def command_uptime(self, message):
 		now = time.time()
 		startformat = format_time(self.start_time)
 		deltaformat = format_time_delta(now - self.start_time)
@@ -167,10 +187,19 @@ class Bot(Controller):
 		await self.room.send(text, message.message_id)
 	
 	async def command_kill(self, message, args):
-		logging.warn(f"Kill attempt in &{self.room.roomname}: {message.content!r}")
+		logging.warn(f"Kill attempt by @{mention(message.sender.nick)} in &{self.room.roomname}: {message.content!r}")
 		
 		if self.kill_message is not None:
 			await self.room.send(self.kill_message, message.message_id)
 		
 		if self.killable:
 			await self.stop()
+	
+	async def command_restart(self, message, args):
+		logging.warn(f"Restart attempt by @{mention(message.sender.nick)} in &{self.room.roomname}: {message.content!r}")
+		
+		if self.restart_message is not None:
+			await self.room.send(self.restart_message, message.message_id)
+		
+		if self.restartable:
+			await self.restart()

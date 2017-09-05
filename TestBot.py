@@ -3,12 +3,12 @@ from yaboli.utils import *
 
 
 
-#class TestBot(Bot):
 class TestBot(yaboli.Bot):
 	def __init__(self, nick):
 		super().__init__(nick=nick)
 		
 		self.register_callback("tree", self.command_tree, specific=False)
+		self.register_callback("stree", self.command_simple_tree, specific=False)
 	
 	#async def on_send(self, message):
 		#if message.content == "!spawnevil":
@@ -36,13 +36,20 @@ class TestBot(yaboli.Bot):
 		messages = [message]
 		newmessages = []
 		for i in range(2):
-			for m in messages:
+			for msg in messages:
 				for j in range(2):
-					newm = await self.room.send(f"{message.content}.{j}", m.message_id)
+					newm = await self.room.send(f"{msg.content}.{j}", msg.message_id)
 					newmessages.append(newm)
 			messages = newmessages
 			newmessages = []
+	
+	async def command_simple_tree(self, message, args):
+		root = await self.room.send("root message", message.message_id)
+		branch1 = await self.room.send("branch 1", root.message_id)
+		branch2 = await self.room.send("branch 2", root.message_id)
+		await self.room.send("branch 1.1", branch1.message_id)
+		await self.room.send("branch 2.1", branch2.message_id)
+		await self.room.send("branch 1.2", branch1.message_id)
 
 if __name__ == "__main__":
-	bot = TestBot("TestSummoner")
-	run_controller(bot, "test")
+	run_bot(TestBot, "test", "TestSummoner")
