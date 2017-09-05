@@ -302,7 +302,7 @@ class Room:
 			logger.warn(f"&{self.roomname}: Throttled for reason: {packet.get('throttled_reason', 'no reason')!r}")
 		
 		if "error" in packet:
-			raise ResponseError(response.get("error"))
+			raise ResponseError(packet.get("error"))
 	
 	async def _handle_bounce(self, packet):
 		"""
