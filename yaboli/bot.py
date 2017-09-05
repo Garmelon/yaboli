@@ -25,9 +25,11 @@ class Bot(Controller):
 		self._callbacks = Callbacks()
 		self.register_default_callbacks()
 		
+		self._help_topics = {}
+		
 		# settings (modify in your bot's __init__)
-		self.general_help = None # None -> does not respond to general help
-		self.specific_help = "No help available"
+		self.help_general = None # None -> does not respond to general help
+		self.help_specific = "No help available"
 		self.killable = True
 		self.kill_message = "/me *poof*" # how to respond to !kill, whether killable or not
 		self.restartable = True
@@ -35,6 +37,21 @@ class Bot(Controller):
 	
 	def register_callback(self, event, callback, specific=True):
 		self._callbacks.add((event, specific), callback)
+	
+	def add_help(self, topic, text, description=None):
+		info = (text, description) # TODO: make named tuple?
+		self._help_topics[topic] = info
+	
+	def get_help(self, topic):
+		info = self._help_topics.get(topic, ("No help available", None))
+		return info[0]
+	
+	def get_help_topics(self):
+		topics = []
+		for topic, info in sorted(self._help_topics.items()):
+			if info[1] is not None:
+				topics.append(f"{topic} - {info[1]}\n")
+		return "".join(topics)
 	
 	async def restart(self):
 		# After calling this, the bot is stopped, not yet restarted.
@@ -59,9 +76,10 @@ class Bot(Controller):
 		)
 		
 		if len(args) > 0:
-			mention = args[0]
+			name = args[0]
 			args = args[1:]
-			if mention[:1] == "@" and similar(mention[1:], self.nick):
+			if name[:1] == "@" and similar(name[1:], self.nick):
+				logger.debug("Specific command!")
 				# specific callback (specific set to True)
 				await self._callbacks.call((command, True), message, args)
 		
@@ -81,6 +99,8 @@ class Bot(Controller):
 		command = match.group(1)
 		argstr = match.group(2)
 		args = self.parse_args(argstr)
+		
+		logger.debug(f"Parsed command. command={command!r}, args={args!r}")
 		
 		return command, args
 	
@@ -170,13 +190,13 @@ class Bot(Controller):
 	
 	@noargs # TODO: specific command help (!help @bot ping)
 	async def command_help(self, message):
-		if self.specific_help:
-			await self.room.send(self.specific_help, message.message_id)
+		if self.help_specific:
+			await self.room.send(self.help_specific, message.message_id)
 	
 	@noargs
 	async def command_help_general(self, message):
-		if self.general_help is not None:
-			await self.room.send(self.general_help, message.message_id)
+		if self.help_general is not None:
+			await self.room.send(self.help_general, message.message_id)
 	
 	@noargs
 	async def command_uptime(self, message):
@@ -203,3 +223,16 @@ class Bot(Controller):
 		
 		if self.restartable:
 			await self.restart()
+
+class Multibot(Bot):
+	def __init__(self, nick, keeper):
+		super().__init__(nick)
+		
+		self.keeper = keeper
+
+class MultibotKeeper():
+	def __init__(self, configfile):
+		# TODO: load configfile
+		
+		# TODO: namedtuple botinfo (bot, task)
+		self._bots = {} # self._bots[roomname] = botinfo
