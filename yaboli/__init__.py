@@ -10,6 +10,7 @@ logger.setLevel(logging.INFO)
 from .bot import *
 from .connection import *
 from .controller import *
+from .database import *
 from .room import *
 from .utils import *
 
