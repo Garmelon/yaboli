@@ -34,6 +34,7 @@ class Bot(Controller):
 		self.kill_message = "/me *poof*" # how to respond to !kill, whether killable or not
 		self.restartable = True
 		self.restart_message = "/me temporary *poof*" # how to respond to !restart, whether restartable or not
+		self.ping_message = "Pong!" # as specified by the botrulez
 	
 	def register_callback(self, event, callback, specific=True):
 		self._callbacks.add((event, specific), callback)
@@ -186,7 +187,8 @@ class Bot(Controller):
 	
 	@noargs
 	async def command_ping(self, message):
-		await self.room.send("Pong!", message.message_id)
+		if self.ping_message:
+			await self.room.send(self.ping_message, message.message_id)
 	
 	@noargs # TODO: specific command help (!help @bot ping)
 	async def command_help(self, message):
