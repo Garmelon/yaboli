@@ -43,10 +43,9 @@ class Connection:
 		
 		logger.debug(f"Stopped previously running things.")
 		
-		tries_left = max_tries
-		while tries_left > 0:
+		for tries_left in reversed(range(max_tries)):
 			logger.info(f"Attempting to connect, {tries_left} tries left.")
-			tries_left -= 1
+
 			try:
 				self._ws = await websockets.connect(self.url, max_size=None)
 			except (websockets.InvalidURI, websockets.InvalidHandshake, socket.gaierror):
@@ -56,7 +55,8 @@ class Connection:
 			else:
 				self._runtask = asyncio.ensure_future(self._run())
 				self._pingtask = asyncio.ensure_future(self._ping())
-				logger.debug(f"return self._runtask")
+				logger.debug(f"Started run and ping tasks")
+				
 				return self._runtask
 	
 	async def _run(self):
