@@ -451,7 +451,10 @@ class Room:
 		data = packet.get("data")
 		message = Message.from_dict(data)
 		
-		await self.controller.on_edit_message(message)
+		await self.controller.on_edit_message(
+			data.get("edit_id"),
+			message
+		)
 	
 	async def _handle_part(self, packet):
 		"""
