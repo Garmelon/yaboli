@@ -73,7 +73,11 @@ class Connection:
 			self._clean_up_futures()
 			self._clean_up_tasks()
 			
-			await self._ws.close() # just to make sure
+			try:
+				await self._ws.close() # just to make sure
+			except:
+				pass # errors are not useful here
+			
 			await self._pingtask # should stop now that the ws is closed
 			self._ws = None
 	
@@ -92,7 +96,7 @@ class Connection:
 				logger.warning("Ping timed out.")
 				await self._ws.close2()
 				break
-			except websockets.ConnectionClosed:
+			except (websockets.ConnectionClosed, ConnectionResetError):
 				break
 			else:
 				await asyncio.sleep(self.ping_delay)
@@ -103,7 +107,10 @@ class Connection:
 		"""
 		
 		if self._ws:
-			await self._ws.close()
+			try:
+				await self._ws.close()
+			except:
+				pass # errors not useful here
 		
 		if self._runtask:
 			await self._runtask
