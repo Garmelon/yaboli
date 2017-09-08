@@ -27,11 +27,12 @@ class Controller:
 	
 	"""
 	
-	def __init__(self, nick, human=False, cookie=None):
+	def __init__(self, nick, human=False, cookie=None, connect_timeout=10):
 		"""
-		roomname  - name of room to connect to
-		human     - whether the human flag should be set on connections
-		cookie    - cookie to use in HTTP request, if any
+		roomname        - name of room to connect to
+		human           - whether the human flag should be set on connections
+		cookie          - cookie to use in HTTP request, if any
+		connect_timeout - time for authentication to complete
 		"""
 		self.nick = nick
 		self.human = human
@@ -41,6 +42,7 @@ class Controller:
 		self.password = None
 		
 		self.room = None
+		self.connect_timeout = connect_timeout # in seconds
 		self._connect_result = None
 	
 	def _create_room(self, roomname):
@@ -70,6 +72,7 @@ class Controller:
 		  "no password"    = password needed to connect to room
 		  "wrong password" = password given does not work
 		  "disconnected"   = connection closed before client could access the room
+		  "timeout"        = timed out while waiting for server
 		  "success"        = no failure
 		"""
 		
@@ -97,9 +100,13 @@ class Controller:
 		
 		# connection succeeded, now we need to know whether we can log in
 		# wait for success/authentication/disconnect
-		# TODO: add a timeout
-		await self._connect_result
-		result = self._connect_result.result()
+		try:
+			await asyncio.wait_for(self._connect_result, self.connect_timeout)
+		except asyncio.TimeoutError:
+			result = "timeout"
+		else:
+			result = self._connect_result.result()
+		
 		logger.debug(f"&{roomname}._connect_result: {result!r}")
 		
 		# deal with result

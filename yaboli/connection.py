@@ -77,6 +77,7 @@ class Connection:
 			except:
 				pass # errors are not useful here
 			
+			self._pingtask.cancel()
 			await self._pingtask # should stop now that the ws is closed
 			self._ws = None
 	
@@ -91,14 +92,13 @@ class Connection:
 				wait_for_reply = await self._ws.ping()
 				await asyncio.wait_for(wait_for_reply, self.ping_timeout)
 				logger.debug("Pinged!")
+				await asyncio.sleep(self.ping_delay)
 			except asyncio.TimeoutError:
 				logger.warning("Ping timed out.")
 				await self._ws.close()
 				break
-			except (websockets.ConnectionClosed, ConnectionResetError):
-				break
-			else:
-				await asyncio.sleep(self.ping_delay)
+			except (websockets.ConnectionClosed, ConnectionResetError, asyncio.CancelledError):
+				return
 	
 	async def stop(self):
 		"""
