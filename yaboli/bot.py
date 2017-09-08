@@ -25,8 +25,9 @@ class Bot(Controller):
 		self.restarting = False # whoever runs the bot can check if a restart is necessary
 		self.start_time = time.time()
 		
-		self._callbacks = Callbacks()
-		self.register_default_callbacks()
+		self._commands = Callbacks()
+		self._triggers = Callbacks()
+		self.register_default_commands()
 		
 		self._help_topics = {}
 		
@@ -39,8 +40,11 @@ class Bot(Controller):
 		self.restart_message = "/me temporary *poof*" # how to respond to !restart, whether restartable or not
 		self.ping_message = "Pong!" # as specified by the botrulez
 	
-	def register_callback(self, event, callback, specific=True):
-		self._callbacks.add((event, specific), callback)
+	def register_command(self, command, callback, specific=True):
+		self._commands.add((command, specific), callback)
+	
+	def register_trigger(self, regex, callback):
+		self._triggers.add(regex, callback)
 	
 	def add_help(self, topic, text, description=None):
 		info = (text, description) # TODO: make named tuple?
@@ -71,21 +75,27 @@ class Bot(Controller):
 	async def on_send(self, message):
 		wait = []
 		
+		# get specific command to call (if any)
 		specific = self.parse_message(message.content, specific=True)
 		if specific:
-			wait.append(self._callbacks.call(
+			wait.append(self._commands.call(
 				(specific.command, True),
-				message,
-				specific.argstr
+				message, specific.argstr
 			))
 		
+		# get generic command to call (if any)
 		general = self.parse_message(message.content, specific=False)
 		if general:
-			wait.append(self._callbacks.call(
+			wait.append(self._commands.call(
 				(general.command, False),
-				message,
-				general.argstr
+				message, general.argstr
 			))
+		
+		# find triggers to call (if any)
+		for trigger in self._triggers.list():
+			match = re.fullmatch(trigger, message.content)
+			if match:
+				wait.append(self._triggers.call(trigger, message, match))
 		
 		if wait:
 			await asyncio.wait(wait)
@@ -177,14 +187,14 @@ class Bot(Controller):
 	
 	# BOTRULEZ AND YABOLI-SPECIFIC COMMANDS
 	
-	def register_default_callbacks(self):
-		self.register_callback("ping", self.command_ping)
-		self.register_callback("ping", self.command_ping, specific=False)
-		self.register_callback("help", self.command_help)
-		self.register_callback("help", self.command_help_general, specific=False)
-		self.register_callback("uptime", self.command_uptime)
-		self.register_callback("kill", self.command_kill)
-		self.register_callback("restart", self.command_restart)
+	def register_default_commands(self):
+		self.register_command("ping", self.command_ping)
+		self.register_command("ping", self.command_ping, specific=False)
+		self.register_command("help", self.command_help)
+		self.register_command("help", self.command_help_general, specific=False)
+		self.register_command("uptime", self.command_uptime)
+		self.register_command("kill", self.command_kill)
+		self.register_command("restart", self.command_restart)
 	
 	@noargs
 	async def command_ping(self, message):

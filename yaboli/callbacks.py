@@ -54,3 +54,12 @@ class Callbacks():
 		"""
 		
 		return event in self._callbacks
+	
+	def list(self):
+		"""
+		list() -> callbacks
+		
+		Returns a list of current callbacks
+		"""
+		
+		return list(self._callbacks.keys())
