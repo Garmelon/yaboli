@@ -10,10 +10,41 @@ __all__ = ["Room"]
 
 
 class Room:
+	"""
+	This class represents a connection to a room. This basically means that one
+	room instance means one nick on the nick list.
+	
+	It's purpose is to provide a higher-level way of interacting with a room to
+	a controller. This includes converting packets received from the server to
+	utility classes where possible, or keeping track of current room state like
+	the client's nick.
+	It does not keep track of the room's messages, as keeping (or not keeping)
+	messages is highly application-dependent. If needed, messages can be kept
+	using the utils.Log class.
+	
+	Room implements all commands necessary for creating bots. For now, the
+	human flag should always be False, and the cookie None.
+	It also "attaches" to a controller and calls the corresponding functions
+	when it receives events from the server
+	
+	When connection is lost while the room is running, it will attempt to
+	reconnect a few times. Loss of connection is determined by self._conn.
+	"""
+	
 	ROOM_FORMAT = "wss://euphoria.io/room/{}/ws"
 	HUMAN_FORMAT = f"{ROOM_FORMAT}?h=1"
 	
 	def __init__(self, roomname, controller, human=False, cookie=None):
+		"""
+		Create a room. To connect to the room and start a run task that listens
+		to packets on the connection, use connect().
+		
+		roomname   - name of the room to connect to, without a "&" in front
+		controller - the controller which should be notified of events
+		human      - currently not implemented, should be False
+		cookie     - currently not implemented, should be None
+		"""
+		
 		self.roomname = roomname
 		self.controller = controller
 		self.human = human
@@ -47,12 +78,32 @@ class Room:
 		self._conn = Connection(url, self._handle_packet, self.cookie)
 	
 	async def connect(self, max_tries=10, delay=60):
+		"""
+		runtask = await connect(max_tries, delay)
+		
+		Attempts to connect to the room once and returns a task running
+		self._run, if successful, otherwise None. This can be used to detect if
+		a room exists.
+		
+		The max_tries and delay parameters are passed on to self._run:
+		max_tries - maximum number of reconnect attempts before stopping
+		delay     - time (in seconds) between reconnect attempts
+		"""
+		
 		task = await self._conn.connect(max_tries=1)
 		if task:
 			self._runtask = asyncio.ensure_future(self._run(task, max_tries=max_tries, delay=delay))
 			return self._runtask
 	
 	async def _run(self, task, max_tries=10, delay=60):
+		"""
+		await _run(max_tries, delay)
+		
+		Run and reconnect when the connection is lost or closed, unless
+		self._stopping is set to True.
+		For an explanation of the parameters, see self.connect.
+		"""
+		
 		while not self._stopping:
 			if task.done():
 				task = await self._conn.connect(max_tries=max_tries, delay=delay)
@@ -65,6 +116,12 @@ class Room:
 		self.stopping = False
 	
 	async def stop(self):
+		"""
+		await stop()
+		
+		Close the connection to the room without reconnecting.
+		"""
+		
 		self._stopping = True
 		await self._conn.stop()
 		
@@ -267,6 +324,13 @@ class Room:
 	# All the private functions for dealing with stuff
 	
 	def _add_callbacks(self):
+		"""
+		_add_callbacks()
+		
+		Adds the functions that handle server events to the callbacks for that
+		event.
+		"""
+		
 		self._callbacks.add("bounce-event", self._handle_bounce)
 		self._callbacks.add("disconnect-event", self._handle_disconnect)
 		self._callbacks.add("hello-event", self._handle_hello)
@@ -283,12 +347,28 @@ class Room:
 		self._callbacks.add("snapshot-event", self._handle_snapshot)
 	
 	async def _send_packet(self, *args, **kwargs):
+		"""
+		reply_packet = await _send_packet(*args, **kwargs)
+		
+		Like self._conn.send, but checks for an error on the packet and raises
+		the corresponding exception.
+		"""
+		
 		response = await self._conn.send(*args, **kwargs)
 		self._check_for_errors(response)
 		
 		return response
 	
 	async def _handle_packet(self, packet):
+		"""
+		await _handle_packet(packet)
+		
+		Call the correct callbacks to deal with packet.
+		
+		This function catches CancelledErrors and instead displays an info so
+		the console doesn't show stack traces when a bot loses connection.
+		"""
+		
 		self._check_for_errors(packet)
 		
 		ptype = packet.get("type")
@@ -296,8 +376,16 @@ class Room:
 			await self._callbacks.call(ptype, packet)
 		except asyncio.CancelledError as e:
 			logger.info(f"&{self.roomname}: Callback of type {ptype!r} cancelled.")
+			#raise # not necessary?
 	
 	def _check_for_errors(self, packet):
+		"""
+		_check_for_errors(packet)
+		
+		Checks for an error on the packet and raises the corresponding
+		exception.
+		"""
+		
 		if packet.get("throttled", False):
 			logger.warn(f"&{self.roomname}: Throttled for reason: {packet.get('throttled_reason', 'no reason')!r}")
 		
