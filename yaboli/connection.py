@@ -94,7 +94,7 @@ class Connection:
 				logger.debug("Pinged!")
 			except asyncio.TimeoutError:
 				logger.warning("Ping timed out.")
-				await self._ws.close2()
+				await self._ws.close()
 				break
 			except (websockets.ConnectionClosed, ConnectionResetError):
 				break
