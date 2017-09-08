@@ -18,6 +18,7 @@ class Bot(Controller):
 	GENERIC_RE = r"!(\S+)([\S\s]*)"
 	
 	ParsedMessage = namedtuple("ParsedMessage", ["command", "argstr"])
+	TopicHelp = namedtuple("TopicHelp", ["text", "visible"])
 	
 	def __init__(self, nick):
 		super().__init__(nick)
@@ -30,6 +31,7 @@ class Bot(Controller):
 		self.register_default_commands()
 		
 		self._help_topics = {}
+		self.add_default_help_topics()
 		
 		# settings (modify in your bot's __init__)
 		self.help_general = None # None -> does not respond to general help
@@ -46,20 +48,57 @@ class Bot(Controller):
 	def register_trigger(self, regex, callback):
 		self._triggers.add(regex, callback)
 	
-	def add_help(self, topic, text, description=None):
-		info = (text, description) # TODO: make named tuple?
+	def add_help(self, topic, text, visible=True):
+		info = self.TopicHelp(text, visible)
 		self._help_topics[topic] = info
 	
 	def get_help(self, topic):
-		info = self._help_topics.get(topic, ("No help available", None))
-		return info[0]
+		info = self._help_topics.get(topic, None)
+		if info:
+			return self.format_help(info.text)
 	
-	def get_help_topics(self):
-		topics = []
+	def format_help(self, helptext):
+		return helptext.format(
+			nick=mention(self.nick)
+		)
+	
+	def list_help_topics(self, max_characters=100):
+		# Magic happens here to ensure that the resulting lines are always
+		# max_characters or less characters long.
+		
+		lines = []
+		curline = ""
+		wrapper = None
+		
 		for topic, info in sorted(self._help_topics.items()):
-			if info[1] is not None:
-				topics.append(f"{topic} - {info[1]}\n")
-		return "".join(topics)
+			if not info.visible:
+				continue
+			
+			if wrapper:
+				curline += ","
+				lines.append(curline)
+				curline = wrapper
+				wrapper = None
+			
+			if not curline:
+				curline = topic
+			elif len(curline) + len(f", {topic},") <= max_characters:
+				curline += f", {topic}"
+			elif len(curline) + len(f", {topic}") <= max_characters:
+				wrapper = topic
+			else:
+				curline += ","
+				lines.append(curline)
+				curline = topic
+		
+		if wrapper:
+			curline += ","
+			lines.append(curline)
+			lines.append(wrapper)
+		elif curline:
+			lines.append(curline)
+		
+		return "\n".join(lines)
 	
 	async def restart(self):
 		# After calling this, the bot is stopped, not yet restarted.
@@ -196,15 +235,55 @@ class Bot(Controller):
 		self.register_command("kill", self.command_kill)
 		self.register_command("restart", self.command_restart)
 	
+	def add_default_help_topics(self):
+		self.add_help("botrulez", (
+			"This bot complies with the botrulez at https://github.com/jedevc/botrulez.\n"
+			"It implements the standard commands, and additionally !kill and !restart.\n\n"
+			"Standard commands:\n"
+			"  !ping, !ping @{nick} - reply with a short pong message\n"
+			"  !help, !help @{nick} - reply with help about the bot\n"
+			"  !uptime @{nick} - reply with the bot's uptime\n\n"
+			"Non-standard commands:\n"
+			"  !kill @{nick} - terminate this bot instance\n"
+			"  !restart @{nick} - restart this bot instance\n\n"
+			"Command extensions:\n"
+			"  !help @{nick} <topic> [<topic> ...] - provide help on the topics listed"
+		))
+		
+		self.add_help("yaboli", (
+			"Yaboli is \"Yet Another BOt LIbrary for euphoria\", written by @Garmy in Python.\n"
+			"It relies heavily on the asyncio module from the standard library and uses f-strings.\n"
+			"Because of this, Python version >= 3.6 is required.\n\n"
+			"Github: https://github.com/Garmelon/yaboli"
+		))
+	
 	@noargs
 	async def command_ping(self, message):
 		if self.ping_message:
 			await self.room.send(self.ping_message, message.mid)
 	
-	@noargs # TODO: specific command help (!help @bot ping)
-	async def command_help(self, message):
-		if self.help_specific:
-			await self.room.send(self.help_specific, message.mid)
+	async def command_help(self, message, argstr):
+		args = self.parse_args(argstr.lower())
+		if not args:
+			if self.help_specific:
+				await self.room.send(
+					self.format_help(self.help_specific),
+					message.mid
+				)
+		else:
+			# collect all valid topics
+			messages = []
+			for topic in sorted(set(args)):
+				text = self.get_help(topic)
+				if text:
+					messages.append(f"Topic: {topic}\n{text}")
+			
+			# print result in separate messages
+			if messages:
+				for text in messages:
+					await self.room.send(text, message.mid)
+			else:
+				await self.room.send("None of those topics found.", message.mid)
 	
 	@noargs
 	async def command_help_general(self, message):
