@@ -207,7 +207,7 @@ class Controller:
 	async def on_send(self, message):
 		pass
 	
-	async def on_snapshot(self, user_id, session_id, version, listing, log, nick=None,
+	async def on_snapshot(self, user_id, session_id, version, sessions, messages, nick=None,
 	                      pm_with_nick=None, pm_with_user_id=None):
 		if nick != self.nick:
 			await self.room.nick(self.nick)

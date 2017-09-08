@@ -108,6 +108,22 @@ class Session:
 		self.client_address = client_address
 		self.real_address = real_address
 	
+	@property
+	def uid(self):
+		return self.user_id
+	
+	@uid.setter
+	def uid(self, new_uid):
+		self.user_id = new_uid
+	
+	@property
+	def sid(self):
+		return self.session_id
+	
+	@sid.setter
+	def sid(self, new_sid):
+		self.session_id = new_sid
+	
 	@classmethod
 	def from_dict(cls, d):
 		return cls(
@@ -187,6 +203,14 @@ class Message():
 		self.edited = edited
 		self.deleted = deleted
 		self.truncated = truncated
+	
+	@property
+	def mid(self):
+		return self.message_id
+	
+	@mid.setter
+	def mid(self, new_mid):
+		self.message_id = new_mid
 	
 	@classmethod
 	def from_dict(cls, d):

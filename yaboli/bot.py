@@ -1,4 +1,5 @@
 import asyncio
+from collections import namedtuple
 import logging
 import re
 import time
@@ -15,6 +16,8 @@ class Bot(Controller):
 	# ^ and $ not needed since we're doing a re.fullmatch
 	SPECIFIC_RE = r"!(\S+)\s+@(\S+)([\S\s]*)"
 	GENERIC_RE = r"!(\S+)([\S\s]*)"
+	
+	ParsedMessage = namedtuple("ParsedMessage", ["command", "argstr"])
 	
 	def __init__(self, nick):
 		super().__init__(nick)
@@ -60,50 +63,48 @@ class Bot(Controller):
 		await self.stop()
 	
 	def noargs(func):
-		async def wrapper(self, message, args):
-			if not args:
+		async def wrapper(self, message, argstr):
+			if not argstr:
 				return await func(self, message)
 		return wrapper
 	
 	async def on_send(self, message):
-		parsed = self.parse_message(message.content)
-		if not parsed:
-			return
-		command, args = parsed
+		wait = []
 		
-		# general callback (specific set to False)
-		general = asyncio.ensure_future(
-			self._callbacks.call((command, False), message, args)
-		)
+		specific = self.parse_message(message.content, specific=True)
+		if specific:
+			wait.append(self._callbacks.call(
+				(specific.command, True),
+				message,
+				specific.argstr
+			))
 		
-		if len(args) > 0:
-			name = args[0]
-			args = args[1:]
-			if name[:1] == "@" and similar(name[1:], self.nick):
-				logger.debug("Specific command!")
-				# specific callback (specific set to True)
-				await self._callbacks.call((command, True), message, args)
+		general = self.parse_message(message.content, specific=False)
+		if general:
+			wait.append(self._callbacks.call(
+				(general.command, False),
+				message,
+				general.argstr
+			))
 		
-		await general
+		if wait:
+			await asyncio.wait(wait)
 	
-	def parse_message(self, content):
+	def parse_message(self, content, specific=True):
 		"""
-		(command, args) = parse_message(content)
+		ParsedMessage = parse_message(content)
 		
 		Returns None, not a (None, None) tuple, when message could not be parsed
 		"""
 		
-		match = re.fullmatch(self.GENERIC_RE, content)
-		if not match:
-			return None
-		
-		command = match.group(1)
-		argstr = match.group(2)
-		args = self.parse_args(argstr)
-		
-		logger.debug(f"Parsed command. command={command!r}, args={args!r}")
-		
-		return command, args
+		if specific:
+			match = re.fullmatch(self.SPECIFIC_RE, content)
+			if match and similar(match.group(2), self.nick):
+				return self.ParsedMessage(match.group(1), match.group(3))
+		else:
+			match = re.fullmatch(self.GENERIC_RE, content)
+			if match:
+				return self.ParsedMessage(match.group(1), match.group(2))
 	
 	def parse_args(self, text):
 		"""
@@ -188,17 +189,17 @@ class Bot(Controller):
 	@noargs
 	async def command_ping(self, message):
 		if self.ping_message:
-			await self.room.send(self.ping_message, message.message_id)
+			await self.room.send(self.ping_message, message.mid)
 	
 	@noargs # TODO: specific command help (!help @bot ping)
 	async def command_help(self, message):
 		if self.help_specific:
-			await self.room.send(self.help_specific, message.message_id)
+			await self.room.send(self.help_specific, message.mid)
 	
 	@noargs
 	async def command_help_general(self, message):
 		if self.help_general is not None:
-			await self.room.send(self.help_general, message.message_id)
+			await self.room.send(self.help_general, message.mid)
 	
 	@noargs
 	async def command_uptime(self, message):
@@ -206,13 +207,13 @@ class Bot(Controller):
 		startformat = format_time(self.start_time)
 		deltaformat = format_time_delta(now - self.start_time)
 		text = f"/me has been up since {startformat} ({deltaformat})"
-		await self.room.send(text, message.message_id)
+		await self.room.send(text, message.mid)
 	
 	async def command_kill(self, message, args):
 		logging.warn(f"Kill attempt by @{mention(message.sender.nick)} in &{self.room.roomname}: {message.content!r}")
 		
 		if self.kill_message is not None:
-			await self.room.send(self.kill_message, message.message_id)
+			await self.room.send(self.kill_message, message.mid)
 		
 		if self.killable:
 			await self.stop()
@@ -221,7 +222,7 @@ class Bot(Controller):
 		logging.warn(f"Restart attempt by @{mention(message.sender.nick)} in &{self.room.roomname}: {message.content!r}")
 		
 		if self.restart_message is not None:
-			await self.room.send(self.restart_message, message.message_id)
+			await self.room.send(self.restart_message, message.mid)
 		
 		if self.restartable:
 			await self.restart()
