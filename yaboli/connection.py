@@ -1,14 +1,10 @@
-import logging
-logger = logging.getLogger(__name__)
-
 import asyncio
-asyncio.get_event_loop().set_debug(True)
-
 import json
-import websockets
+import logging
 import socket
-#from websockets import ConnectionClosed
+import websockets
 
+logger = logging.getLogger(__name__)
 __all__ = ["Connection"]
 
 
@@ -35,6 +31,9 @@ class Connection:
 		
 		Attempt to connect to a room.
 		Returns the task listening for packets, or None if the attempt failed.
+		
+		max_tries - maximum number of reconnect attempts before stopping
+		delay     - time (in seconds) between reconnect attempts
 		"""
 		
 		logger.debug(f"Attempting to connect, max_tries={max_tries}")
@@ -178,15 +177,7 @@ class Connection:
 		self._spawned_tasks.add(task)
 		
 		# only keep running tasks
-		#tasks = set()
-		#for task in self._spawned_tasks:
-			#if not task.done():
-				#logger.debug(f"Keeping task: {task}")
-				#tasks.add(task)
-			#else:
-				#logger.debug(f"Deleting task: {task}")
-		#self._spawned_tasks = tasks
-		self._spawned_tasks = {task for task in self._spawned_tasks if not task.done()} # TODO: Reenable
+		self._spawned_tasks = {task for task in self._spawned_tasks if not task.done()}
 	
 	def _wait_for_response(self, pid):
 		future = asyncio.Future()
