@@ -21,7 +21,6 @@ class PooledConnection:
 	
 	async def open(self):
 		self.connection = await self._pool._request()
-		print(self.connection)
 	
 	async def close(self):
 		conn = self.connection
