@@ -85,7 +85,7 @@ def format_time_delta(delta):
 	
 	if delta >= hour:
 		result += f"{delta//hour}h "
-		delta = delta%day
+		delta = delta%hour
 	
 	if delta >= minute:
 		result += f"{delta//minute}m "
