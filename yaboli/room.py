@@ -306,7 +306,8 @@ class Room:
 		# update self.listing
 		self.listing = Listing()
 		for session in sessions:
-			self.listing.add(session)
+			if not session.sid == self.session.sid:
+				self.listing.add(session)
 		
 		return sessions
 	
