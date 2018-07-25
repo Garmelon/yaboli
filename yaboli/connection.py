@@ -65,7 +65,7 @@ class Connection:
 		self._stopped = True
 		await self.reconnect() # _run() does the cleaning up now.
 		await self._runtask
-	
+
 	async def reconnect(self):
 		"""
 		Reconnect to the url.

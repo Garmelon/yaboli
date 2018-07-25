@@ -17,14 +17,14 @@ __all__ = [
 #	"""
 #	Helper function to run a singular controller.
 #	"""
-#	
+#
 #	async def run():
 #		task, reason = await controller.connect(room)
 #		if task:
 #			await task
 #		else:
 #			logger.warn(f"Could not connect to &{room}: {reason!r}")
-#	
+#
 #	asyncio.get_event_loop().run_until_complete(run())
 #
 #def run_bot(bot_class, room, *args, **kwargs):
@@ -32,7 +32,7 @@ __all__ = [
 #	Helper function to run a bot. To run Multibots, use the MultibotKeeper.
 #	This restarts the bot when it is explicitly restarted through Bot.restart().
 #	"""
-#	
+#
 #	async def run():
 #		while True:
 #			logger.info(f"Creating new instance and connecting to &{room}")
@@ -42,12 +42,12 @@ __all__ = [
 #				await task
 #			else:
 #				logger.warn(f"Could not connect to &{room}: {reason!r}")
-#			
+#
 #			if bot.restarting:
 #				logger.info(f"Restarting in &{room}")
 #			else:
 #				break
-#	
+#
 #	asyncio.get_event_loop().run_until_complete(run())
 
 def mention(nick):
@@ -70,28 +70,28 @@ def format_time_delta(delta):
 		result = "-"
 	else:
 		result = ""
-	
+
 	delta = int(delta)
-	
+
 	second = 1
 	minute = second*60
 	hour = minute*60
 	day = hour*24
-	
+
 	if delta >= day:
 		result += f"{delta//day}d "
 		delta = delta%day
-	
+
 	if delta >= hour:
 		result += f"{delta//hour}h "
 		delta = delta%hour
-	
+
 	if delta >= minute:
 		result += f"{delta//minute}m "
 		delta = delta%minute
-	
+
 	result += f"{delta}s"
-	
+
 	return result
 
 class Session:
@@ -106,23 +106,23 @@ class Session:
 		self.is_manager = is_manager
 		self.client_address = client_address
 		self.real_address = real_address
-	
+
 	@property
 	def uid(self):
 		return self.user_id
-	
+
 	@uid.setter
 	def uid(self, new_uid):
 		self.user_id = new_uid
-	
+
 	@property
 	def sid(self):
 		return self.session_id
-	
+
 	@sid.setter
 	def sid(self, new_sid):
 		self.session_id = new_sid
-	
+
 	@classmethod
 	def from_dict(cls, d):
 		return cls(
@@ -136,7 +136,7 @@ class Session:
 			d.get("client_address", None),
 			d.get("real_address", None)
 		)
-	
+
 	@property
 	def client_type(self):
 		# account, agent or bot
@@ -145,16 +145,16 @@ class Session:
 class Listing:
 	def __init__(self):
 		self._sessions = {}
-	
+
 	def __len__(self):
 		return len(self._sessions)
-	
+
 	def add(self, session):
 		self._sessions[session.session_id] = session
-	
+
 	def remove(self, session_id):
 		self._sessions.pop(session_id)
-	
+
 	def remove_combo(self, server_id, server_era):
 		removed = [ses for ses in self._sessions.items()
 		           if ses.server_id == server_id and ses.server_era == server_era]
@@ -163,34 +163,34 @@ class Listing:
 		                  if ses.server_id != server_id and ses.server_era != server_era}
 
 		return removed
-	
+
 	def by_sid(self, session_id):
 		return self._sessions.get(session_id);
-	
+
 	def by_uid(self, user_id):
 		return [ses for ses in self._sessions if ses.user_id == user_id]
-	
+
 	def get(self, types=["agent", "account", "bot"], lurker=None):
 		sessions = []
 		for uid, ses in self._sessions.items():
 			if ses.client_type not in types:
 				continue
-			
+
 			is_lurker = not ses.nick # "" or None
 			if lurker is None or lurker == is_lurker:
 				sessions.append(ses)
-		
+
 		return sessions
-	
+
 	#def get_people(self):
 		#return self.get(types=["agent", "account"])
-	
+
 	#def get_accounts(self):
 		#return self.get(types=["account"])
-	
+
 	#def get_agents(self):
 		#return self.get(types=["agent"])
-	
+
 	#def get_bots(self):
 		#return self.get(types=["bot"])
 
@@ -207,15 +207,15 @@ class Message():
 		self.edited = edited
 		self.deleted = deleted
 		self.truncated = truncated
-	
+
 	@property
 	def mid(self):
 		return self.message_id
-	
+
 	@mid.setter
 	def mid(self, new_mid):
 		self.message_id = new_mid
-	
+
 	@classmethod
 	def from_dict(cls, d):
 		return cls(
