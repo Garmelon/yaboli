@@ -4,7 +4,7 @@ import logging
 import socket
 import websockets
 
-from .exceptions import ConnectionClosed
+from .exceptions import *
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class Connection:
 
 	async def send(self, ptype, data=None, await_response=True):
 		if not self._ws:
-			raise exceptions.ConnectionClosed
+			raise ConnectionClosed
 			#raise asyncio.CancelledError
 
 		pid = str(self._new_pid())
@@ -63,9 +63,16 @@ class Connection:
 		"""
 
 		self._stopped = True
-		if self._ws:
-			await self._ws.close() # _run() does the cleaning up now.
+		await self.reconnect() # _run() does the cleaning up now.
 		await self._runtask
+	
+	async def reconnect(self):
+		"""
+		Reconnect to the url.
+		"""
+
+		if self._ws:
+			await self._ws.close()
 
 	async def _connect(self, tries):
 		"""
@@ -116,6 +123,8 @@ class Connection:
 		 - make sure the ping task has finished
 		"""
 
+		asyncio.create_task(self.disconnect_callback())
+
 		# stop ping task
 		if self._pingtask:
 			self._pingtask.cancel()
@@ -131,7 +140,7 @@ class Connection:
 		# clean up pending response futures
 		for _, future in self._pending_responses.items():
 			logger.debug(f"Cancelling future with ConnectionClosed: {future}")
-			future.set_exception(exceptions.ConnectionClosed("No server response"))
+			future.set_exception(ConnectionClosed("No server response"))
 		self._pending_responses = {}
 
 	async def _run(self):
@@ -164,7 +173,7 @@ class Connection:
 				await asyncio.sleep(self.ping_delay)
 		except asyncio.TimeoutError:
 			logger.warning("Ping timed out.")
-			await self._ws.close() # trigger a reconnect attempt
+			await self.reconnect()
 		except (websockets.ConnectionClosed, ConnectionResetError, asyncio.CancelledError):
 			pass
 

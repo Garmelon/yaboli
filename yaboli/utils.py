@@ -1,55 +1,54 @@
 import asyncio
-import logging
+#import logging
 import time
 
-logger = logging.getLogger(__name__)
+#logger = logging.getLogger(__name__)
 __all__ = [
-	"run_controller", "run_bot",
+	#"run_controller", "run_bot",
 	"mention", "mention_reduced", "similar",
 	"format_time", "format_time_delta",
 	"Session", "Listing",
 	"Message", "Log",
-	"ResponseError"
 ]
 
 
 
-def run_controller(controller, room):
-	"""
-	Helper function to run a singular controller.
-	"""
-	
-	async def run():
-		task, reason = await controller.connect(room)
-		if task:
-			await task
-		else:
-			logger.warn(f"Could not connect to &{room}: {reason!r}")
-	
-	asyncio.get_event_loop().run_until_complete(run())
-
-def run_bot(bot_class, room, *args, **kwargs):
-	"""
-	Helper function to run a bot. To run Multibots, use the MultibotKeeper.
-	This restarts the bot when it is explicitly restarted through Bot.restart().
-	"""
-	
-	async def run():
-		while True:
-			logger.info(f"Creating new instance and connecting to &{room}")
-			bot = bot_class(*args, **kwargs)
-			task, reason = await bot.connect(room)
-			if task:
-				await task
-			else:
-				logger.warn(f"Could not connect to &{room}: {reason!r}")
-			
-			if bot.restarting:
-				logger.info(f"Restarting in &{room}")
-			else:
-				break
-	
-	asyncio.get_event_loop().run_until_complete(run())
+#def run_controller(controller, room):
+#	"""
+#	Helper function to run a singular controller.
+#	"""
+#	
+#	async def run():
+#		task, reason = await controller.connect(room)
+#		if task:
+#			await task
+#		else:
+#			logger.warn(f"Could not connect to &{room}: {reason!r}")
+#	
+#	asyncio.get_event_loop().run_until_complete(run())
+#
+#def run_bot(bot_class, room, *args, **kwargs):
+#	"""
+#	Helper function to run a bot. To run Multibots, use the MultibotKeeper.
+#	This restarts the bot when it is explicitly restarted through Bot.restart().
+#	"""
+#	
+#	async def run():
+#		while True:
+#			logger.info(f"Creating new instance and connecting to &{room}")
+#			bot = bot_class(*args, **kwargs)
+#			task, reason = await bot.connect(room)
+#			if task:
+#				await task
+#			else:
+#				logger.warn(f"Could not connect to &{room}: {reason!r}")
+#			
+#			if bot.restarting:
+#				logger.info(f"Restarting in &{room}")
+#			else:
+#				break
+#	
+#	asyncio.get_event_loop().run_until_complete(run())
 
 def mention(nick):
 	return "".join(c for c in nick if c not in ".!?;&<'\"" and not c.isspace())
@@ -157,8 +156,13 @@ class Listing:
 		self._sessions.pop(session_id)
 	
 	def remove_combo(self, server_id, server_era):
+		removed = [ses for ses in self._sessions.items()
+		           if ses.server_id == server_id and ses.server_era == server_era]
+
 		self._sessions = {i: ses for i, ses in self._sessions.items()
 		                  if ses.server_id != server_id and ses.server_era != server_era}
+
+		return removed
 	
 	def by_sid(self, session_id):
 		return self._sessions.get(session_id);
@@ -226,9 +230,3 @@ class Message():
 			d.get("deleted", None),
 			d.get("truncated", None)
 		)
-
-class Log:
-	pass # TODO
-
-class ResponseError(Exception):
-	pass
