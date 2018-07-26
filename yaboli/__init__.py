@@ -1,15 +1,3 @@
-# ---------- BEGIN DEV SECTION ----------
-import asyncio
-import logging
-
-# asyncio debugging
-asyncio.get_event_loop().set_debug(True) # uncomment for asycio debugging mode
-logging.getLogger("asyncio").setLevel(logging.DEBUG)
-
-# yaboli logger level
-logging.getLogger(__name__).setLevel(logging.DEBUG)
-# ----------- END DEV SECTION -----------
-
 from .bot import *
 from .cookiejar import *
 from .connection import *
