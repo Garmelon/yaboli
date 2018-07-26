@@ -1,13 +1,12 @@
 import asyncio
 import logging
 
-logger = logging.getLogger(__name__)
-
 from .connection import *
 from .exceptions import *
 from .utils import *
 
 
+logger = logging.getLogger(__name__)
 __all__ = ["Room", "Inhabitant"]
 
 
@@ -155,7 +154,6 @@ class Room:
 
 	async def _receive_packet(self, ptype, data, error, throttled):
 		# Ignoring errors and throttling for now
-		logger.debug(f"Received packet of type: {ptype}")
 		functions = {
 			"bounce-event":       self._event_bounce,
 			#"disconnect-event":   self._event_disconnect, # Not important, can ignore

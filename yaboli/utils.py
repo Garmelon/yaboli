@@ -1,54 +1,12 @@
 import asyncio
-#import logging
 import time
 
-#logger = logging.getLogger(__name__)
 __all__ = [
-	#"run_controller", "run_bot",
 	"mention", "mention_reduced", "similar",
 	"format_time", "format_time_delta",
-	"Session", "Listing",
-	"Message",
+	"Session", "Listing", "Message",
 ]
 
-
-
-#def run_controller(controller, room):
-#	"""
-#	Helper function to run a singular controller.
-#	"""
-#
-#	async def run():
-#		task, reason = await controller.connect(room)
-#		if task:
-#			await task
-#		else:
-#			logger.warn(f"Could not connect to &{room}: {reason!r}")
-#
-#	asyncio.get_event_loop().run_until_complete(run())
-#
-#def run_bot(bot_class, room, *args, **kwargs):
-#	"""
-#	Helper function to run a bot. To run Multibots, use the MultibotKeeper.
-#	This restarts the bot when it is explicitly restarted through Bot.restart().
-#	"""
-#
-#	async def run():
-#		while True:
-#			logger.info(f"Creating new instance and connecting to &{room}")
-#			bot = bot_class(*args, **kwargs)
-#			task, reason = await bot.connect(room)
-#			if task:
-#				await task
-#			else:
-#				logger.warn(f"Could not connect to &{room}: {reason!r}")
-#
-#			if bot.restarting:
-#				logger.info(f"Restarting in &{room}")
-#			else:
-#				break
-#
-#	asyncio.get_event_loop().run_until_complete(run())
 
 def mention(nick):
 	return "".join(c for c in nick if c not in ".!?;&<'\"" and not c.isspace())
