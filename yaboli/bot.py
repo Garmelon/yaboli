@@ -19,12 +19,9 @@ GENERAL_RE = re.compile(r"!(\S+)\s*([\S\s]*)")
 def command(commandname, specific=True, noargs=False):
 	def decorator(func):
 		async def wrapper(self, room, message, *args, **kwargs):
-			print(f"New message: {message.content!r}, current name: {room.session!r}")
 			if specific:
-				print(f"Trying specific: {message.content!r}")
 				result = self._parse_command(message.content, specific=room.session.nick)
 			else:
-				print(f"Trying general: {message.content!r}")
 				result = self._parse_command(message.content)
 			if result is None: return
 			cmd, argstr = result
@@ -172,14 +169,11 @@ class Bot(Inhabitant):
 
 	@staticmethod
 	def _parse_command(content, specific=None):
-		print(repr(specific))
 		if specific is not None:
-			print("SPECIFIC")
 			match = SPECIFIC_RE.fullmatch(content)
 			if match and similar(match.group(2), specific):
 				return match.group(1), match.group(3)
 		else:
-			print("GENERAL")
 			match = GENERAL_RE.fullmatch(content)
 			if match:
 				return match.group(1), match.group(2)
