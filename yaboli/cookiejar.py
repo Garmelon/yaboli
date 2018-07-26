@@ -12,9 +12,13 @@ class CookieJar:
 	Keeps your cookies in a file.
 	"""
 
-	def __init__(self, filename):
+	def __init__(self, filename=None):
 		self._filename = filename
 		self._cookies = cookies.SimpleCookie()
+
+		if not self._filename:
+			logger.info("Could not load cookies, no filename given.")
+			return
 
 		with contextlib.suppress(FileNotFoundError):
 			with open(self._filename, "r") as f:
@@ -44,6 +48,10 @@ class CookieJar:
 		"""
 		Saves all current cookies to the cookie jar file.
 		"""
+
+		if not self._filename:
+			logger.info("Could not save cookies, no filename given.")
+			return
 
 		logger.debug(f"Saving cookies to {self._filename!r}")
 

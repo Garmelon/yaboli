@@ -109,6 +109,7 @@ class Connection:
 				if self.cookiejar:
 					for set_cookie in self._ws.response_headers.get_all("Set-Cookie"):
 						self.cookiejar.bake(set_cookie)
+						self.cookiejar.save()
 
 				self._pingtask = asyncio.ensure_future(self._ping())
 

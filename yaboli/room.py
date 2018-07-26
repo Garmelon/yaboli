@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 from .connection import *
 from .exceptions import *
@@ -19,12 +20,13 @@ class Room:
 	DISCONNECTED = 2
 	CLOSED = 3
 
-	def __init__(self, roomname, inhabitant, password=None, human=False, cookiejar=None):
+	def __init__(self, inhabitant, roomname, nick, password=None, human=False, cookiejar=None):
 		# TODO: Connect to room etc.
 		# TODO: Deal with room/connection states of:
 		# disconnected connecting, fast-forwarding, connected
 
 		# Room info (all fields readonly!)
+		self.target_nick = nick
 		self.roomname = roomname
 		self.password = password
 		self.human = human
@@ -32,6 +34,8 @@ class Room:
 		self.session = None
 		self.account = None
 		self.listing = Listing()
+
+		self.start_time = time.time()
 
 		self.account_has_access = None
 		self.account_email_verified = None
@@ -103,6 +107,8 @@ class Room:
 		uid = data.get("id")
 		from_nick = data.get("from")
 		to_nick = data.get("to")
+
+		self.session.nick = to_nick
 		return sid, uid, from_nick, to_nick
 
 	async def pm(self, uid):
@@ -260,15 +266,13 @@ class Room:
 		# Update room info
 		self.pm_with_nick = data.get("pm_with_nick", None),
 		self.pm_with_user_id = data.get("pm_with_user_id", None)
+		self.session.nick = data.get("nick", None)
 
-		# Remember old nick, because we're going to try to get it back
-		old_nick = self.session.nick if self.session else None
-		new_nick = data.get("nick", None)
-		self.session.nick = new_nick
-
-		if old_nick and old_nick != new_nick:
+		# Make sure a room is not CONNECTED without a nick
+		if self.target_nick and self.target_nick != self.session.nick:
 			try:
-				await self._connection.send("nick", data={"name": old_nick})
+				_, nick_data, _, _ = await self._connection.send("nick", data={"name": self.target_nick})
+				self.session.nick = nick_data.get("to")
 			except ConnectionClosed:
 				return # Aww, we've lost connection again
 

@@ -2,11 +2,15 @@ import asyncio
 import time
 
 __all__ = [
+	"parallel",
 	"mention", "mention_reduced", "similar",
 	"format_time", "format_time_delta",
 	"Session", "Listing", "Message",
 ]
 
+
+# alias for parallel message sending
+parallel = asyncio.ensure_future
 
 def mention(nick):
 	return "".join(c for c in nick if c not in ".!?;&<'\"" and not c.isspace())
