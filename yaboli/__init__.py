@@ -14,7 +14,7 @@ from .cookiejar import *
 from .connection import *
 from .exceptions import *
 from .room import *
-from utils import *
+from .utils import *
 
 __all__ = (
 	connection.__all__ +

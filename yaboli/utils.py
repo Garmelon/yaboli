@@ -8,7 +8,7 @@ __all__ = [
 	"mention", "mention_reduced", "similar",
 	"format_time", "format_time_delta",
 	"Session", "Listing",
-	"Message", "Log",
+	"Message",
 ]
 
 

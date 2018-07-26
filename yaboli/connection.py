@@ -28,7 +28,7 @@ class Connection:
 
 		self._stopped = False
 		self._pingtask = None
-		self._runtask = asyncio.create_task(self._run())
+		self._runtask = asyncio.ensure_future(self._run())
 		# ... aaand the connection is started.
 
 	async def send(self, ptype, data=None, await_response=True):
@@ -90,8 +90,8 @@ class Connection:
 		delay = 1 # seconds
 		while True:
 			try:
-				if self._cookiejar:
-					cookies = [("Cookie", cookie) for cookie in self._cookiejar.sniff()]
+				if self.cookiejar:
+					cookies = [("Cookie", cookie) for cookie in self.cookiejar.sniff()]
 					self._ws = await websockets.connect(self.url, max_size=None, extra_headers=cookies)
 				else:
 					self._ws = await websockets.connect(self.url, max_size=None)
@@ -106,11 +106,11 @@ class Connection:
 				await asyncio.sleep(delay)
 				delay *= 2
 			else:
-				if self._cookiejar:
+				if self.cookiejar:
 					for set_cookie in self._ws.response_headers.get_all("Set-Cookie"):
-						self._cookiejar.bake(set_cookie)
+						self.cookiejar.bake(set_cookie)
 
-				self._pingtask = asyncio.create_task(self._ping())
+				self._pingtask = asyncio.ensure_future(self._ping())
 
 				return True
 
@@ -123,7 +123,7 @@ class Connection:
 		 - make sure the ping task has finished
 		"""
 
-		asyncio.create_task(self.disconnect_callback())
+		asyncio.ensure_future(self.disconnect_callback())
 
 		# stop ping task
 		if self._pingtask:
@@ -149,7 +149,7 @@ class Connection:
 		"""
 
 		while not self._stopped:
-			self._connect(self.reconnect_attempts)
+			await self._connect(self.reconnect_attempts)
 
 			try:
 				while True:
@@ -183,13 +183,7 @@ class Connection:
 
 	async def _handle_next_message(self):
 		response = await self._ws.recv()
-		packet = json.loads(text)
-
-		# Deal with pending responses
-		pid = packet.get("id", None)
-		future = self._pending_responses.pop(pid, None)
-		if future:
-			future.set_result(packet)
+		packet = json.loads(response)
 
 		ptype = packet.get("type")
 		data = packet.get("data", None)
@@ -199,8 +193,14 @@ class Connection:
 		else:
 			throttled = None
 
+		# Deal with pending responses
+		pid = packet.get("id", None)
+		future = self._pending_responses.pop(pid, None)
+		if future:
+			future.set_result((ptype, data, error, throttled))
+
 		# Pass packet onto room
-		asyncio.create_task(self.packet_callback(ptype, data, error, throttled))
+		asyncio.ensure_future(self.packet_callback(ptype, data, error, throttled))
 
 	def _wait_for_response(self, pid):
 		future = asyncio.Future()

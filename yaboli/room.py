@@ -1,9 +1,14 @@
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
 from .connection import *
 from .exceptions import *
 from .utils import *
 
 
-__all__ == ["Room", "Inhabitant"]
+__all__ = ["Room", "Inhabitant"]
 
 
 class Room:
@@ -13,7 +18,7 @@ class Room:
 
 	CONNECTED = 1
 	DISCONNECTED = 2
-	EXITED = 3
+	CLOSED = 3
 
 	def __init__(self, roomname, inhabitant, password=None, human=False, cookiejar=None):
 		# TODO: Connect to room etc.
@@ -38,6 +43,7 @@ class Room:
 
 		self._inhabitant = inhabitant
 		self._status = Room.DISCONNECTED
+		self._connected_future = asyncio.Future()
 
 		# TODO: Allow for all parameters of Connection() to be specified in Room().
 		self._connection = Connection(
@@ -48,7 +54,7 @@ class Room:
 		)
 
 	async def exit(self):
-		self._status = Room.EXITED
+		self._status = Room.CLOSED
 		await self._connection.stop()
 
 # ROOM COMMANDS
@@ -57,16 +63,62 @@ class Room:
 # the command will retry once the bot has reconnected.
 
 	async def get_message(self, mid):
-		pass
+		if self._status == Room.CLOSED:
+			raise RoomClosed()
+
+		ptype, data, error, throttled = await self._send_while_connected(
+			"get-message",
+			id=mid
+		)
+
+		return Message.from_dict(data)
 
 	async def log(self, n, before_mid=None):
-		pass
+		if self._status == Room.CLOSED:
+			raise RoomClosed()
+
+		if before_mid:
+			ptype, data, error, throttled = await self._send_while_connected(
+				"log",
+				n=n,
+				before=before_mid
+			)
+		else:
+			ptype, data, error, throttled = await self._send_while_connected(
+				"log",
+				n=n
+			)
+
+		return [Message.from_dict(d) for d in data.get("log")]
 
 	async def nick(self, nick):
-		pass
+		if self._status == Room.CLOSED:
+			raise RoomClosed()
+
+		ptype, data, error, throttled = await self._send_while_connected(
+			"nick",
+			name=nick
+		)
+
+		sid = data.get("session_id")
+		uid = data.get("id")
+		from_nick = data.get("from")
+		to_nick = data.get("to")
+		return sid, uid, from_nick, to_nick
 
 	async def pm(self, uid):
-		pass
+		if self._status == Room.CLOSED:
+			raise RoomClosed()
+
+		ptype, data, error, throttled = await self._send_while_connected(
+			"pm-initiate",
+			user_id=uid
+		)
+
+		# Just ignoring non-authenticated errors
+		pm_id = data.get("pm_id")
+		to_nick = data.get("to_nick")
+		return pm_id, to_nick
 
 	async def send(self, content, parent_mid=None):
 		"""
@@ -75,13 +127,13 @@ class Room:
 		"""
 
 		if parent_mid:
-			data = await self._send_while_connected(
+			ptype, data, error, throttled = await self._send_while_connected(
 				"send",
 				content=content,
 				parent=parent_mid
 			)
 		else:
-			data = await self._send_while_connected(
+			ptype, data, error, throttled = await self._send_while_connected(
 				"send",
 				content=content
 			)
@@ -103,6 +155,7 @@ class Room:
 
 	async def _receive_packet(self, ptype, data, error, throttled):
 		# Ignoring errors and throttling for now
+		logger.debug(f"Received packet of type: {ptype}")
 		functions = {
 			"bounce-event":       self._event_bounce,
 			#"disconnect-event":   self._event_disconnect, # Not important, can ignore
@@ -127,7 +180,8 @@ class Room:
 	async def _event_bounce(self, data):
 		if self.password is not None:
 			try:
-				response = await self._connection.send("auth", type=passcode, passcode=self.password)
+				data = {"type": passcode, "passcode": self.password}
+				response = await self._connection.send("auth", data=data)
 				rdata = response.get("data")
 				success = rdata.get("success")
 				if not success:
@@ -140,7 +194,7 @@ class Room:
 
 	async def _event_hello(self, data):
 		self.session = Session.from_dict(data.get("session"))
-		self.room_is_private = = data.get("room_is_private")
+		self.room_is_private = data.get("room_is_private")
 		self.version = data.get("version")
 		self.account = data.get("account", None)
 		self.account_has_access = data.get("account_has_access", None)
@@ -178,8 +232,9 @@ class Room:
 
 	async def _event_ping(self, data):
 		try:
-			self._connection.send()
-		except exceptions.ConnectionClosed:
+			new_data = {"time": data.get("time")}
+			await self._connection.send( "ping-reply", data=new_data, await_response=False)
+		except ConnectionClosed:
 			pass
 
 	async def _event_pm_initiate(self, data):
@@ -191,34 +246,41 @@ class Room:
 		await self._inhabitant.pm(self, from_uid, from_nick, from_room, pm_id)
 
 	async def _event_send(self, data):
-		pass # TODO X
+		message = Message.from_dict(data)
+
+		await self._inhabitant.send(self, message)
+
 		# TODO: Figure out a way to bring fast-forwarding into this
 
 	async def _event_snapshot(self, data):
-		# update listing
+		# Update listing
 		self.listing = Listing()
 		sessions = [Session.from_dict(d) for d in data.get("listing")]
 		for session in sessions:
 			self.listing.add(session)
 
-		# update (and possibly set) nick
-		new_nick = data.get("nick", None)
-		if self.session:
-			prev_nick = self.session.nick
-			if new_nick != prev_nick:
-				self.nick(prev_nick)
-		self.session.nick = new_nick
-
-		# update more room info
+		# Update room info
 		self.pm_with_nick = data.get("pm_with_nick", None),
 		self.pm_with_user_id = data.get("pm_with_user_id", None)
 
+		# Remember old nick, because we're going to try to get it back
+		old_nick = self.session.nick if self.session else None
+		new_nick = data.get("nick", None)
+		self.session.nick = new_nick
+
+		if old_nick and old_nick != new_nick:
+			try:
+				await self._connection.send("nick", data={"name": old_nick})
+			except ConnectionClosed:
+				return # Aww, we've lost connection again
+
 		# Now, we're finally connected again!
 		self.status = Room.CONNECTED
-		if not self._connected_future.done(): # should always be True, I think
+		if not self._connected_future.done(): # Should never be done already, I think
 			self._connected_future.set_result(None)
 
 		# Let's let the inhabitant know.
+		logger.debug("Letting inhabitant know")
 		log = [Message.from_dict(m) for m in data.get("log")]
 		await self._inhabitant.connected(self, log)
 
@@ -244,14 +306,14 @@ class Room:
 
 # REST OF THE IMPLEMENTATION
 
-	async def _send_while_connected(*args, **kwargs):
+	async def _send_while_connected(self, *args, **kwargs):
 		while True:
 			if self._status == Room.CLOSED:
 				raise RoomClosed()
 
 			try:
 				await self.connected()
-				return await self._connection.send(*args, **kwargs)
+				return await self._connection.send(*args, data=kwargs)
 			except ConnectionClosed:
 				pass # just try again
 
@@ -263,7 +325,7 @@ class Inhabitant:
 
 # ROOM EVENTS
 # These functions are called by the room when something happens.
-# They're launched via asyncio.create_task(), so they don't block execution of the room.
+# They're launched via asyncio.ensure_future(), so they don't block execution of the room.
 # Just overwrite the events you need (make sure to keep the arguments the same though).
 
 	async def disconnected(self, room):
