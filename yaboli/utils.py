@@ -1,6 +1,8 @@
 import asyncio
+import logging
 import time
 
+logger = logging.getLogger(__name__)
 __all__ = [
 	"parallel",
 	"mention", "mention_reduced", "similar",
@@ -143,6 +145,13 @@ class Listing:
 				sessions.append(ses)
 
 		return sessions
+
+	@classmethod
+	def from_dict(cls, d):
+		listing = cls()
+		for session in d:
+			listing.add(Session.from_dict(session))
+		return listing
 
 	#def get_people(self):
 		#return self.get(types=["agent", "account"])

@@ -8,7 +8,7 @@ from .utils import *
 
 
 logger = logging.getLogger(__name__)
-__all__ = ["Bot"]
+__all__ = ["Bot", "command"]
 
 
 # Some command stuff
@@ -30,7 +30,7 @@ def command(commandname, specific=True, noargs=False):
 				if argstr: return
 				return await func(self, room, message, *args, **kwargs)
 			else:
-				return await func(self, room, message, args*args, **kwargs)
+				return await func(self, room, message, argstr, *args, **kwargs)
 		return wrapper
 	return decorator
 
@@ -38,13 +38,10 @@ def command(commandname, specific=True, noargs=False):
 # And now comes the real bot...
 
 class Bot(Inhabitant):
-	def __init__(self, nick, cookiefile=None, rooms=["test"]):
+	def __init__(self, nick, cookiefile=None):
 		self.target_nick = nick
 		self.rooms = {}
 		self.cookiejar = CookieJar(cookiefile)
-
-		for roomname in rooms:
-			self.join_room(roomname)
 
 	# ROOM MANAGEMENT
 

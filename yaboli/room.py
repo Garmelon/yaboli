@@ -98,6 +98,7 @@ class Room:
 		if self._status == Room.CLOSED:
 			raise RoomClosed()
 
+		self.target_nick = nick
 		ptype, data, error, throttled = await self._send_while_connected(
 			"nick",
 			name=nick
@@ -126,11 +127,6 @@ class Room:
 		return pm_id, to_nick
 
 	async def send(self, content, parent_mid=None):
-		"""
-		Send a message to the room.
-		See http://api.euphoria.io/#send
-		"""
-
 		if parent_mid:
 			ptype, data, error, throttled = await self._send_while_connected(
 				"send",
@@ -146,7 +142,8 @@ class Room:
 		return Message.from_dict(data)
 
 	async def who(self):
-		pass
+		ptype, data, error, throttled = await self._send_while_connected("who")
+		self.listing = Listing.from_dict(data.get("listing"))
 
 # COMMUNICATION WITH CONNECTION
 
