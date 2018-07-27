@@ -56,6 +56,8 @@ class Room:
 			cookiejar
 		)
 
+		asyncio.ensure_future(self._inhabitant.created(self))
+
 	async def exit(self):
 		self._status = Room.CLOSED
 		await self._connection.stop()
@@ -327,10 +329,13 @@ class Inhabitant:
 # They're launched via asyncio.ensure_future(), so they don't block execution of the room.
 # Just overwrite the events you need (make sure to keep the arguments the same though).
 
-	async def disconnected(self, room):
+	async def created(self, room):
 		pass
 
 	async def connected(self, room, log):
+		pass
+
+	async def disconnected(self, room):
 		pass
 
 	async def join(self, room, session):
