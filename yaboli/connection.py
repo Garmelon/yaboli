@@ -48,7 +48,10 @@ class Connection:
 			wait_for = self._wait_for_response(pid)
 
 		logging.debug(f"Currently used websocket at self._ws: {self._ws}")
-		await self._ws.send(json.dumps(packet, separators=(',', ':'))) # minimum size
+		try:
+			await self._ws.send(json.dumps(packet, separators=(',', ':'))) # minimum size
+		except websockets.ConnectionClosed:
+			raise ConnectionClosed()
 
 		if await_response:
 			await wait_for
