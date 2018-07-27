@@ -80,20 +80,20 @@ class Bot(Inhabitant):
 	# BOTRULEZ
 
 	@command("ping", specific=False, args=False)
-	async def botrulez_ping_general(self, room, message, ping_text="Pong!"):
-		await room.send(ping_text, message.mid)
+	async def botrulez_ping_general(self, room, message, text="Pong!"):
+		await room.send(text, message.mid)
 
 	@command("ping", specific=True, args=False)
-	async def botrulez_ping_specific(self, room, message, ping_text="Pong!"):
-		await room.send(ping_text, message.mid)
+	async def botrulez_ping_specific(self, room, message, text="Pong!"):
+		await room.send(text, message.mid)
 
 	@command("help", specific=False, args=False)
-	async def botrulez_help_general(self, room, message, help_text="Placeholder help text"):
-		await room.send(help_text, message.mid)
+	async def botrulez_help_general(self, room, message, text="Placeholder help text"):
+		await room.send(text, message.mid)
 
 	@command("help", specific=True, args=False)
-	async def botrulez_help_specific(self, room, message, help_text="Placeholder help text"):
-		await room.send(help_text, message.mid)
+	async def botrulez_help_specific(self, room, message, text="Placeholder help text"):
+		await room.send(text, message.mid)
 
 	@command("uptime", specific=True, args=False)
 	async def botrulez_uptime(self, room, message):
@@ -104,13 +104,13 @@ class Bot(Inhabitant):
 		await room.send(text, message.mid)
 
 	@command("kill", specific=True, args=False)
-	async def botrulez_kill(self, room, message, kill_text="/me dies"):
-		await room.send(kill_text, message.mid)
+	async def botrulez_kill(self, room, message, text="/me dies"):
+		await room.send(text, message.mid)
 		await self.part_room(room.roomname)
 
 	@command("restart", specific=True, args=False)
-	async def botrulez_restart(self, room, message, restart_text="/me restarts"):
-		await room.send(restart_text, message.mid)
+	async def botrulez_restart(self, room, message, text="/me restarts"):
+		await room.send(text, message.mid)
 		await self.part_room(room.roomname)
 		self.join_room(room.roomname, password=room.password)
 
