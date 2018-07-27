@@ -19,6 +19,7 @@ class Room:
 	CONNECTED = 1
 	DISCONNECTED = 2
 	CLOSED = 3
+	FORWARDING = 4
 
 	def __init__(self, inhabitant, roomname, nick, password=None, human=False, cookiejar=None):
 		# TODO: Connect to room etc.
@@ -47,6 +48,10 @@ class Room:
 		self._inhabitant = inhabitant
 		self._status = Room.DISCONNECTED
 		self._connected_future = asyncio.Future()
+
+		self._last_known_mid = None
+		self._forwarding = None # task that downloads messages and fowards
+		self._forward_new = [] # new messages received while downloading old messages
 
 		# TODO: Allow for all parameters of Connection() to be specified in Room().
 		self._connection = Connection(
@@ -78,15 +83,16 @@ class Room:
 
 		return Message.from_dict(data)
 
-	async def log(self, n, before_mid=None):
+	# The log returned is sorted from old to new
+	async def log(self, n, before=None):
 		if self._status == Room.CLOSED:
 			raise RoomClosed()
 
-		if before_mid:
+		if before:
 			ptype, data, error, throttled = await self._send_while_connected(
 				"log",
 				n=n,
-				before=before_mid
+				before=before
 			)
 		else:
 			ptype, data, error, throttled = await self._send_while_connected(
@@ -128,12 +134,12 @@ class Room:
 		to_nick = data.get("to_nick")
 		return pm_id, to_nick
 
-	async def send(self, content, parent_mid=None):
-		if parent_mid:
+	async def send(self, content, parent=None):
+		if parent:
 			ptype, data, error, throttled = await self._send_while_connected(
 				"send",
 				content=content,
-				parent=parent_mid
+				parent=parent
 			)
 		else:
 			ptype, data, error, throttled = await self._send_while_connected(
@@ -141,7 +147,9 @@ class Room:
 				content=content
 			)
 
-		return Message.from_dict(data)
+		message = Message.from_dict(data)
+		self._last_known_mid = message.mid
+		return message
 
 	async def who(self):
 		ptype, data, error, throttled = await self._send_while_connected("who")
@@ -155,6 +163,9 @@ class Room:
 		# All of this is instead reset when the hello/snapshot events are received.
 		self.status = Room.DISCONNECTED
 		self._connected_future = asyncio.Future()
+
+		if self._forwarding is not None:
+			self._forwarding.cancel()
 
 		await self._inhabitant.disconnected(self)
 
@@ -254,14 +265,20 @@ class Room:
 	async def _event_send(self, data):
 		message = Message.from_dict(data)
 
-		await self._inhabitant.send(self, message)
+		if self._status == Room.FORWARDING:
+			self._forward_new.append(message)
+		else:
+			self._last_known_mid = message.mid
+			await self._inhabitant.send(self, message)
 
 		# TODO: Figure out a way to bring fast-forwarding into this
 
 	async def _event_snapshot(self, data):
+		log = [Message.from_dict(m) for m in data.get("log")]
+		sessions = [Session.from_dict(d) for d in data.get("listing")]
+
 		# Update listing
 		self.listing = Listing()
-		sessions = [Session.from_dict(d) for d in data.get("listing")]
 		for session in sessions:
 			self.listing.add(session)
 		self.listing.add(self.session)
@@ -280,13 +297,23 @@ class Room:
 				return # Aww, we've lost connection again
 
 		# Now, we're finally connected again!
-		self.status = Room.CONNECTED
+		if self._last_known_mid is None:
+			self._status = Room.CONNECTED
+			if log: # log goes from old to new
+				self._last_known_mid = log[-1].mid
+		else:
+			self._status = Room.FORWARDING
+			self._forward_new = []
+
+			if self._forwarding is not None:
+				self._forwarding.cancel()
+			self._forwarding = asyncio.ensure_future(self._forward(log))
+
 		if not self._connected_future.done(): # Should never be done already, I think
 			self._connected_future.set_result(None)
 
 		# Let's let the inhabitant know.
 		logger.debug("Letting inhabitant know")
-		log = [Message.from_dict(m) for m in data.get("log")]
 		await self._inhabitant.connected(self, log)
 
 		# TODO: Figure out a way to bring fast-forwarding into this
@@ -310,6 +337,32 @@ class Room:
 		await self._connected_future
 
 # REST OF THE IMPLEMENTATION
+
+	async def _forward(self, log):
+		old_messages = []
+		while True:
+			found_last_known = True
+			for message in reversed(log):
+				if message.mid <= self._last_known_mid:
+					break
+				old_messages.append(message)
+			else:
+				found_last_known = False
+
+			if found_last_known:
+				break
+
+			log = await self.log(100, before=log[0].mid)
+
+		for message in reversed(old_messages):
+			self._last_known_mid = message.mid
+			asyncio.ensure_future(self._inhabitant.forward(self, message))
+		for message in self._forward_new:
+			self._last_known_mid = message.mid
+			asyncio.ensure_future(self._inhabitant.forward(self, message))
+
+		self._forward_new = []
+		self._status = Room.CONNECTED
 
 	async def _send_while_connected(self, *args, **kwargs):
 		while True:
