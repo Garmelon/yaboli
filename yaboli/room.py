@@ -146,6 +146,7 @@ class Room:
 	async def who(self):
 		ptype, data, error, throttled = await self._send_while_connected("who")
 		self.listing = Listing.from_dict(data.get("listing"))
+		self.listing.add(self.session)
 
 # COMMUNICATION WITH CONNECTION
 
@@ -202,6 +203,8 @@ class Room:
 		self.account = data.get("account", None)
 		self.account_has_access = data.get("account_has_access", None)
 		self.account_email_verified = data.get("account_email_verified", None)
+
+		self.listing.add(self.session)
 
 	async def _event_join(self, data):
 		session = Session.from_dict(data)
@@ -261,6 +264,7 @@ class Room:
 		sessions = [Session.from_dict(d) for d in data.get("listing")]
 		for session in sessions:
 			self.listing.add(session)
+		self.listing.add(self.session)
 
 		# Update room info
 		self.pm_with_nick = data.get("pm_with_nick", None),
