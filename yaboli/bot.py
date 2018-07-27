@@ -8,7 +8,7 @@ from .utils import *
 
 
 logger = logging.getLogger(__name__)
-__all__ = ["Bot", "command"]
+__all__ = ["Bot", "command", "trigger"]
 
 
 # Some command stuff
@@ -16,21 +16,42 @@ __all__ = ["Bot", "command"]
 SPECIFIC_RE = re.compile(r"!(\S+)\s+@(\S+)\s*([\S\s]*)")
 GENERAL_RE = re.compile(r"!(\S+)\s*([\S\s]*)")
 
-def command(commandname, specific=True, noargs=False):
+# Decorator magic for commands and triggers.
+# I think commands could probably be implemented as some kind of triggers,
+# but I'm not gonna do that now because commands are working fine this way.
+def command(commandname, specific=True, args=True):
 	def decorator(func):
-		async def wrapper(self, room, message, *args, **kwargs):
+		async def wrapper(self, room, message, *args_, **kwargs_):
 			if specific:
 				result = self._parse_command(message.content, specific=room.session.nick)
 			else:
 				result = self._parse_command(message.content)
-			if result is None: return
+			if result is None: return False
 			cmd, argstr = result
-			if cmd != commandname: return
-			if noargs:
-				if argstr: return
-				return await func(self, room, message, *args, **kwargs)
+			if cmd != commandname: return False
+			if args:
+				await func(self, room, message, argstr, *args_, **kwargs_)
+				return True
 			else:
-				return await func(self, room, message, argstr, *args, **kwargs)
+				if argstr: return
+				await func(self, room, message, *args_, **kwargs_)
+				return True
+		return wrapper
+	return decorator
+
+def trigger(regex, fullmatch=True, flags=0):
+	def decorator(func):
+		compiled_regex = re.compile(regex, flags=flags)
+		async def wrapper(self, room, message, *args, **kwargs):
+			if fullmatch:
+				match = compiled_regex.fullmatch(message.content)
+			else:
+				match = compiled_regex.match(message.content)
+			if match is not None:
+				await func(self, room, message, match, *args, **kwargs)
+				return True
+			else:
+				return False
 		return wrapper
 	return decorator
 
@@ -58,23 +79,23 @@ class Bot(Inhabitant):
 
 	# BOTRULEZ
 
-	@command("ping", specific=False, noargs=True)
+	@command("ping", specific=False, args=False)
 	async def botrulez_ping_general(self, room, message, ping_text="Pong!"):
 		await room.send(ping_text, message.mid)
 
-	@command("ping", specific=True, noargs=True)
+	@command("ping", specific=True, args=False)
 	async def botrulez_ping_specific(self, room, message, ping_text="Pong!"):
 		await room.send(ping_text, message.mid)
 
-	@command("help", specific=False, noargs=True)
+	@command("help", specific=False, args=False)
 	async def botrulez_help_general(self, room, message, help_text="Placeholder help text"):
 		await room.send(help_text, message.mid)
 
-	@command("help", specific=True, noargs=True)
+	@command("help", specific=True, args=False)
 	async def botrulez_help_specific(self, room, message, help_text="Placeholder help text"):
 		await room.send(help_text, message.mid)
 
-	@command("uptime", specific=True, noargs=True)
+	@command("uptime", specific=True, args=False)
 	async def botrulez_uptime(self, room, message):
 		now = time.time()
 		startformat = format_time(room.start_time)
@@ -82,12 +103,12 @@ class Bot(Inhabitant):
 		text = f"/me has been up since {startformat} ({deltaformat})"
 		await room.send(text, message.mid)
 
-	@command("kill", specific=True, noargs=True)
+	@command("kill", specific=True, args=False)
 	async def botrulez_kill(self, room, message, kill_text="/me dies"):
 		await room.send(kill_text, message.mid)
 		await self.part_room(room.roomname)
 
-	@command("restart", specific=True, noargs=True)
+	@command("restart", specific=True, args=False)
 	async def botrulez_restart(self, room, message, restart_text="/me restarts"):
 		await room.send(restart_text, message.mid)
 		await self.part_room(room.roomname)
