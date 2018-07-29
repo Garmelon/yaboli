@@ -161,6 +161,7 @@ class Room:
 	async def _disconnected(self):
 		# While disconnected, keep the last known session info, listing etc.
 		# All of this is instead reset when the hello/snapshot events are received.
+		logger.warn(f"&{self.roomname}:Lost connection.")
 		self.status = Room.DISCONNECTED
 		self._connected_future = asyncio.Future()
 
@@ -193,6 +194,7 @@ class Room:
 			await function(data)
 
 	async def _event_bounce(self, data):
+		logger.info(f"&{self.roomname}:Received bounce-event")
 		if self.password is not None:
 			try:
 				data = {"type": passcode, "passcode": self.password}
@@ -201,10 +203,14 @@ class Room:
 				success = rdata.get("success")
 				if not success:
 					reason = rdata.get("reason")
-					raise AuthenticationRequired(f"Could not join &{self.roomname}: {reason}")
+					logger.warn(f"&{self.roomname}:Authentication failed: {reason}")
+					raise AuthenticationRequired(f"Could not join &{self.roomname}:{reason}")
+				else:
+					logger.info(f"&{self.roomname}:Authentication successful")
 			except ConnectionClosed:
 				pass
 		else:
+			logger.warn(f"&{self.roomname}:Could not authenticate: Password unknown")
 			raise AuthenticationRequired(f"&{self.roomname} is password locked but no password was given")
 
 	async def _event_hello(self, data):
@@ -225,6 +231,7 @@ class Room:
 	async def _event_network(self, data):
 		server_id = data.get("server_id")
 		server_era = data.get("server_era")
+		logger.debug(f"&{self.roomname}:Received network-event: server_id: {server_id!r}, server_era: {server_era!r}")
 
 		sessions = self.listing.remove_combo(server_id, server_era)
 		for session in sessions:
@@ -266,6 +273,7 @@ class Room:
 		message = Message.from_dict(data)
 
 		if self._status == Room.FORWARDING:
+			logger.info(f"&{self.roomname}:Received new message while forwarding, adding to queue")
 			self._forward_new.append(message)
 		else:
 			self._last_known_mid = message.mid
@@ -274,6 +282,7 @@ class Room:
 		# TODO: Figure out a way to bring fast-forwarding into this
 
 	async def _event_snapshot(self, data):
+		logger.debug(f"&{self.roomname}:Received snapshot-event, gained access to the room")
 		log = [Message.from_dict(m) for m in data.get("log")]
 		sessions = [Session.from_dict(d) for d in data.get("listing")]
 
@@ -290,6 +299,7 @@ class Room:
 
 		# Make sure a room is not CONNECTED without a nick
 		if self.target_nick and self.target_nick != self.session.nick:
+			logger.info(f"&{self.roomname}:Current nick doesn't match target nick {self.target_nick!r}, changing nick")
 			try:
 				_, nick_data, _, _ = await self._connection.send("nick", data={"name": self.target_nick})
 				self.session.nick = nick_data.get("to")
@@ -298,10 +308,12 @@ class Room:
 
 		# Now, we're finally connected again!
 		if self._last_known_mid is None:
+			logger.info(f"&{self.roomname}:Fully connected")
 			self._status = Room.CONNECTED
 			if log: # log goes from old to new
 				self._last_known_mid = log[-1].mid
 		else:
+			logger.info(f"&{self.roomname}:Not fully connected yet, starting message rewinding")
 			self._status = Room.FORWARDING
 			self._forward_new = []
 
@@ -313,7 +325,6 @@ class Room:
 			self._connected_future.set_result(None)
 
 		# Let's let the inhabitant know.
-		logger.debug("Letting inhabitant know")
 		await self._inhabitant.connected(self, log)
 
 		# TODO: Figure out a way to bring fast-forwarding into this
@@ -354,6 +365,7 @@ class Room:
 
 			log = await self.log(100, before=log[0].mid)
 
+		logger.info(f"&{self.roomname}:Reached last known message, forwarding through messages")
 		for message in reversed(old_messages):
 			self._last_known_mid = message.mid
 			asyncio.ensure_future(self._inhabitant.forward(self, message))
@@ -361,6 +373,7 @@ class Room:
 			self._last_known_mid = message.mid
 			asyncio.ensure_future(self._inhabitant.forward(self, message))
 
+		logger.info(f"&{self.roomname}:Forwarding complete, fully connected")
 		self._forward_new = []
 		self._status = Room.CONNECTED
 

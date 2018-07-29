@@ -154,6 +154,7 @@ class Connection:
 
 		while not self._stopped:
 			await self._connect(self.reconnect_attempts)
+			logger.debug(f"{self.url}:Connected")
 
 			try:
 				while True:
@@ -170,13 +171,13 @@ class Connection:
 
 		try:
 			while True:
-				logger.debug("Pinging...")
+				logger.debug(f"{self.url}:Pinging...")
 				wait_for_reply = await self._ws.ping()
 				await asyncio.wait_for(wait_for_reply, self.ping_timeout)
-				logger.debug("Pinged!")
+				logger.debug(f"{self.url}:Pinged!")
 				await asyncio.sleep(self.ping_delay)
 		except asyncio.TimeoutError:
-			logger.warning("Ping timed out.")
+			logger.warning(f"{self.url}:Ping timed out")
 			await self.reconnect()
 		except (websockets.ConnectionClosed, ConnectionResetError, asyncio.CancelledError):
 			pass

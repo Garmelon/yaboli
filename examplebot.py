@@ -1,13 +1,14 @@
 import asyncio
 import logging
 
-# Turn all debugging on
-asyncio.get_event_loop().set_debug(True)
-logging.basicConfig(level=logging.DEBUG)
-
 import yaboli
 from yaboli.utils import *
 from join_rooms import join_rooms # List of rooms kept in separate file, which is .gitignore'd
+
+# Turn all debugging on
+asyncio.get_event_loop().set_debug(True)
+logging.getLogger("asyncio").setLevel(logging.INFO)
+logging.getLogger("yaboli").setLevel(logging.DEBUG)
 
 
 class ExampleBot(yaboli.Bot):
@@ -26,6 +27,9 @@ class ExampleBot(yaboli.Bot):
 		await self.botrulez_uptime(room, message)
 		await self.botrulez_kill(room, message, text="/me dies spectacularly")
 		await self.botrulez_restart(room, message, text="/me restarts spectacularly")
+
+		if message.content == "!!!":
+			await room._connection._ws.close()
 	
 	forward = send # should work without modifications for most bots
 

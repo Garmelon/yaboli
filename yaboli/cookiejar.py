@@ -17,10 +17,11 @@ class CookieJar:
 		self._cookies = cookies.SimpleCookie()
 
 		if not self._filename:
-			logger.info("Could not load cookies, no filename given.")
+			logger.warning("Could not load cookies, no filename given.")
 			return
 
 		with contextlib.suppress(FileNotFoundError):
+			logger.info(f"Loading cookies from {self._filename!r}")
 			with open(self._filename, "r") as f:
 				for line in f:
 					self._cookies.load(line)
@@ -50,10 +51,10 @@ class CookieJar:
 		"""
 
 		if not self._filename:
-			logger.info("Could not save cookies, no filename given.")
+			logger.warning("Could not save cookies, no filename given.")
 			return
 
-		logger.debug(f"Saving cookies to {self._filename!r}")
+		logger.info(f"Saving cookies to {self._filename!r}")
 
 		with open(self._filename, "w") as f:
 			for morsel in self._cookies.values():
