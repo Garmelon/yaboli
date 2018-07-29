@@ -61,7 +61,7 @@ class Room:
 			cookiejar
 		)
 
-		asyncio.ensure_future(self._inhabitant.created(self))
+		asyncio.ensure_future(self._inhabitant.on_created(self))
 
 	async def exit(self):
 		self._status = Room.CLOSED
@@ -168,7 +168,7 @@ class Room:
 		if self._forwarding is not None:
 			self._forwarding.cancel()
 
-		await self._inhabitant.disconnected(self)
+		await self._inhabitant.on_disconnected(self)
 
 	async def _receive_packet(self, ptype, data, error, throttled):
 		# Ignoring errors and throttling for now
@@ -226,7 +226,7 @@ class Room:
 	async def _event_join(self, data):
 		session = Session.from_dict(data)
 		self.listing.add(session)
-		await self._inhabitant.join(self, session)
+		await self._inhabitant.on_join(self, session)
 
 	async def _event_network(self, data):
 		server_id = data.get("server_id")
@@ -235,7 +235,7 @@ class Room:
 
 		sessions = self.listing.remove_combo(server_id, server_era)
 		for session in sessions:
-			await self._inhabitant.part(self, session)
+			asyncio.ensure_future(self._inhabitant.on_part(self, session))
 
 	async def _event_nick(self, data):
 		sid = data.get("session_id")
@@ -247,12 +247,12 @@ class Room:
 		if session:
 			session.nick = to_nick
 
-		await self._inhabitant.nick(self, sid, uid, from_nick, to_nick)
+		await self._inhabitant.on_nick(self, sid, uid, from_nick, to_nick)
 
 	async def _event_part(self, data):
 		session = Session.from_dict(data)
 		self.listing.remove(session.sid)
-		await self._inhabitant.part(self, session)
+		await self._inhabitant.on_part(self, session)
 
 	async def _event_ping(self, data):
 		try:
@@ -267,7 +267,7 @@ class Room:
 		from_room = data.get("from_room")
 		pm_id = data.get("pm_id")
 
-		await self._inhabitant.pm(self, from_uid, from_nick, from_room, pm_id)
+		await self._inhabitant.on_pm(self, from_uid, from_nick, from_room, pm_id)
 
 	async def _event_send(self, data):
 		message = Message.from_dict(data)
@@ -277,7 +277,7 @@ class Room:
 			self._forward_new.append(message)
 		else:
 			self._last_known_mid = message.mid
-			await self._inhabitant.send(self, message)
+			await self._inhabitant.on_send(self, message)
 
 		# TODO: Figure out a way to bring fast-forwarding into this
 
@@ -325,7 +325,7 @@ class Room:
 			self._connected_future.set_result(None)
 
 		# Let's let the inhabitant know.
-		await self._inhabitant.connected(self, log)
+		await self._inhabitant.on_connected(self, log)
 
 		# TODO: Figure out a way to bring fast-forwarding into this
 		# Should probably happen where this comment is
@@ -368,10 +368,10 @@ class Room:
 		logger.info(f"&{self.roomname}:Reached last known message, forwarding through messages")
 		for message in reversed(old_messages):
 			self._last_known_mid = message.mid
-			asyncio.ensure_future(self._inhabitant.forward(self, message))
+			asyncio.ensure_future(self._inhabitant.on_forward(self, message))
 		for message in self._forward_new:
 			self._last_known_mid = message.mid
-			asyncio.ensure_future(self._inhabitant.forward(self, message))
+			asyncio.ensure_future(self._inhabitant.on_forward(self, message))
 
 		logger.info(f"&{self.roomname}:Forwarding complete, fully connected")
 		self._forward_new = []
@@ -399,29 +399,29 @@ class Inhabitant:
 # They're launched via asyncio.ensure_future(), so they don't block execution of the room.
 # Just overwrite the events you need (make sure to keep the arguments the same though).
 
-	async def created(self, room):
+	async def on_created(self, room):
 		pass
 
-	async def connected(self, room, log):
+	async def on_connected(self, room, log):
 		pass
 
-	async def disconnected(self, room):
+	async def on_disconnected(self, room):
 		pass
 
-	async def join(self, room, session):
+	async def on_join(self, room, session):
 		pass
 
-	async def part(self, room, session):
+	async def on_part(self, room, session):
 		pass
 
-	async def nick(self, room, sid, uid, from_nick, to_nick):
+	async def on_nick(self, room, sid, uid, from_nick, to_nick):
 		pass
 
-	async def send(self, room, message):
+	async def on_send(self, room, message):
 		pass
 
-	async def fast_forward(self, room, message):
-		pass
+	async def on_forward(self, room, message):
+		await self.on_send(room, message)
 
-	async def pm(self, room, from_uid, from_nick, from_room, pm_id):
+	async def on_pm(self, room, from_uid, from_nick, from_room, pm_id):
 		pass

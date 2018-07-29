@@ -12,7 +12,7 @@ logging.getLogger("yaboli").setLevel(logging.DEBUG)
 
 
 class ExampleBot(yaboli.Bot):
-	async def send(self, room, message):
+	async def on_send(self, room, message):
 		ping = "ExamplePong!"
 		short_help = "Example bot for the yaboli bot library"
 		long_help = (
@@ -27,11 +27,6 @@ class ExampleBot(yaboli.Bot):
 		await self.botrulez_uptime(room, message)
 		await self.botrulez_kill(room, message, text="/me dies spectacularly")
 		await self.botrulez_restart(room, message, text="/me restarts spectacularly")
-
-		if message.content == "!!!":
-			await room._connection._ws.close()
-	
-	forward = send # should work without modifications for most bots
 
 def main():
 	bot = ExampleBot("ExampleBot", "examplebot.cookie")
