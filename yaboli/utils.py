@@ -1,10 +1,11 @@
 import asyncio
 import logging
 import time
+import functools
 
 logger = logging.getLogger(__name__)
 __all__ = [
-	"parallel",
+	"parallel", "asyncify",
 	"mention", "mention_reduced", "similar",
 	"format_time", "format_time_delta",
 	"Session", "Listing", "Message",
@@ -13,6 +14,10 @@ __all__ = [
 
 # alias for parallel message sending
 parallel = asyncio.ensure_future
+
+async def asyncify(func, *args, **kwargs):
+	func_with_args = functools.partial(func, *args, **kwargs)
+	return await asyncio.get_event_loop().run_in_executor(None, func_with_args)
 
 def mention(nick):
 	return "".join(c for c in nick if c not in ".!?;&<'\"" and not c.isspace())
