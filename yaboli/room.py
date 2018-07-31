@@ -81,7 +81,9 @@ class Room:
 			id=mid
 		)
 
-		return Message.from_dict(data)
+		if data:
+			return Message.from_dict(data)
+		# else: message does not exist
 
 	# The log returned is sorted from old to new
 	async def log(self, n, before=None):
