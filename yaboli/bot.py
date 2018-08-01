@@ -77,6 +77,11 @@ class Bot(Inhabitant):
 		if room:
 			await room.exit()
 
+	# INHABITED FUNCTIONS
+
+	async def on_stopped(self, room):
+		await self.part_room(room.roomname)
+
 	# BOTRULEZ
 
 	@command("ping", specific=False, args=False)

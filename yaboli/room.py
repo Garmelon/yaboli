@@ -58,6 +58,7 @@ class Room:
 			self.format_room_url(self.roomname, human=self.human),
 			self._receive_packet,
 			self._disconnected,
+			self._stopped,
 			cookiejar
 		)
 
@@ -171,6 +172,9 @@ class Room:
 			self._forwarding.cancel()
 
 		await self._inhabitant.on_disconnected(self)
+
+	async def _stopped(self):
+		await self._inhabitant.on_stopped(self)
 
 	async def _receive_packet(self, ptype, data, error, throttled):
 		# Ignoring errors and throttling for now
@@ -408,6 +412,9 @@ class Inhabitant:
 		pass
 
 	async def on_disconnected(self, room):
+		pass
+
+	async def on_stopped(self, room):
 		pass
 
 	async def on_join(self, room, session):

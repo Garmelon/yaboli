@@ -12,10 +12,11 @@ __all__ = ["Connection"]
 
 
 class Connection:
-	def __init__(self, url, packet_callback, disconnect_callback, cookiejar=None, ping_timeout=10, ping_delay=30, reconnect_attempts=10):
+	def __init__(self, url, packet_callback, disconnect_callback, stop_callback, cookiejar=None, ping_timeout=10, ping_delay=30, reconnect_attempts=10):
 		self.url = url
 		self.packet_callback = packet_callback
 		self.disconnect_callback = disconnect_callback
+		self.stop_callback = stop_callback # is called when the connection stops on its own
 		self.cookiejar = cookiejar
 		self.ping_timeout = ping_timeout # how long to wait for websocket ping reply
 		self.ping_delay = ping_delay # how long to wait between pings
@@ -65,9 +66,10 @@ class Connection:
 		This means that stop() can only be called once.
 		"""
 
-		self._stopped = True
-		await self.reconnect() # _run() does the cleaning up now.
-		await self._runtask
+		if not self._stopped:
+			self._stopped = True
+			await self.reconnect() # _run() does the cleaning up now.
+			await self._runtask
 
 	async def reconnect(self):
 		"""
@@ -153,16 +155,22 @@ class Connection:
 		"""
 
 		while not self._stopped:
-			await self._connect(self.reconnect_attempts)
-			logger.debug(f"{self.url}:Connected")
+			connected = await self._connect(self.reconnect_attempts)
+			if connected:
+				logger.debug(f"{self.url}:Connected")
+				try:
+					while True:
+						await self._handle_next_message()
+				except websockets.ConnectionClosed:
+					pass
+				finally:
+					await self._disconnect() # disconnect and clean up
+			else:
+				logger.debug(f"{self.url}:Stopping")
+				asyncio.ensure_future(self.stop_callback)
+				self._stopped = True
+				await self._disconnect()
 
-			try:
-				while True:
-					await self._handle_next_message()
-			except websockets.ConnectionClosed:
-				pass
-			finally:
-				await self._disconnect() # disconnect and clean up
 
 	async def _ping(self):
 		"""
