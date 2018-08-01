@@ -66,11 +66,11 @@ class Bot(Inhabitant):
 
 	# ROOM MANAGEMENT
 
-	def join_room(self, roomname, password=None):
+	def join_room(self, roomname, **kwargs):
 		if roomname in self.rooms:
 			return
 
-		self.rooms[roomname] = Room(self, roomname, self.target_nick, password=password, cookiejar=self.cookiejar)
+		self.rooms[roomname] = Room(self, roomname, self.target_nick, cookiejar=self.cookiejar, **kwargs)
 
 	async def part_room(self, roomname):
 		room = self.rooms.pop(roomname, None)

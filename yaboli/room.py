@@ -21,7 +21,7 @@ class Room:
 	CLOSED = 3
 	FORWARDING = 4
 
-	def __init__(self, inhabitant, roomname, nick, password=None, human=False, cookiejar=None):
+	def __init__(self, inhabitant, roomname, nick, password=None, human=False, cookiejar=None, **kwargs):
 		# TODO: Connect to room etc.
 		# TODO: Deal with room/connection states of:
 		# disconnected connecting, fast-forwarding, connected
@@ -59,7 +59,8 @@ class Room:
 			self._receive_packet,
 			self._disconnected,
 			self._stopped,
-			cookiejar
+			cookiejar,
+			**kwargs
 		)
 
 		asyncio.ensure_future(self._inhabitant.on_created(self))
