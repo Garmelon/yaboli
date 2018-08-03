@@ -1,16 +1,23 @@
 import asyncio
+import logging
 import sqlite3
 
 from .utils import *
 
 
+logger = logging.getLogger(__name__)
 __all__ = ["Database", "operation"]
 
 
 def operation(func):
 	async def wrapper(self, *args, **kwargs):
 		async with self as db:
-			return await asyncify(func, self, db, *args, **kwargs)
+			while True:
+				try:
+					return await asyncify(func, self, db, *args, **kwargs)
+				except sqlite3.OperationalError as e:
+					logger.warn(f"Operational error encountered: {e}")
+					await asyncio.sleep(5)
 	return wrapper
 
 class Database:
