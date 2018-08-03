@@ -10,7 +10,7 @@ __all__ = ["Database", "operation"]
 def operation(func):
 	async def wrapper(self, *args, **kwargs):
 		async with self as db:
-			return await asyncify(func, db, *args, **kwargs)
+			return await asyncify(func, self, db, *args, **kwargs)
 	return wrapper
 
 class Database:

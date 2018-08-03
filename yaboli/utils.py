@@ -1,12 +1,14 @@
 import asyncio
 import logging
+import re
 import time
 import functools
+
 
 logger = logging.getLogger(__name__)
 __all__ = [
 	"parallel", "asyncify",
-	"mention", "mention_reduced", "similar",
+	"mention", "normalize", "similar",
 	"format_time", "format_time_delta",
 	"Session", "Listing", "Message",
 ]
@@ -19,14 +21,15 @@ async def asyncify(func, *args, **kwargs):
 	func_with_args = functools.partial(func, *args, **kwargs)
 	return await asyncio.get_event_loop().run_in_executor(None, func_with_args)
 
-def mention(nick):
-	return "".join(c for c in nick if c not in ".!?;&<'\"" and not c.isspace())
+def mention(nick, ping=True):
+	nick = re.sub(r"""[,.!?;&<'"\s]""", "", nick)
+	return "@" + nick if ping else nick
 
-def mention_reduced(nick):
-	return mention(nick).lower()
+def normalize(nick):
+	return mention(nick, ping=False).lower()
 
 def similar(nick1, nick2):
-	return mention_reduced(nick1) == mention_reduced(nick2)
+	return normalize(nick1) == normalize(nick2)
 
 def format_time(timestamp):
 	return time.strftime(
@@ -65,7 +68,7 @@ def format_time_delta(delta):
 
 class Session:
 	def __init__(self, user_id, nick, server_id, server_era, session_id, is_staff=None,
-	             is_manager=None, client_address=None, real_address=None):
+	             is_manager=None, client_address=None, real_client_address=None):
 		self.user_id = user_id
 		self.nick = nick
 		self.server_id = server_id
@@ -74,7 +77,7 @@ class Session:
 		self.is_staff = is_staff
 		self.is_manager = is_manager
 		self.client_address = client_address
-		self.real_address = real_address
+		self.real_client_address = real_client_address
 
 	@property
 	def uid(self):
@@ -103,7 +106,7 @@ class Session:
 			d.get("is_staff", None),
 			d.get("is_manager", None),
 			d.get("client_address", None),
-			d.get("real_address", None)
+			d.get("real_client_address", None)
 		)
 
 	@property
@@ -172,14 +175,14 @@ class Listing:
 
 class Message():
 	def __init__(self, message_id, time, sender, content, parent=None, previous_edit_id=None,
-	             encryption_key=None, edited=None, deleted=None, truncated=None):
+	             encryption_key_id=None, edited=None, deleted=None, truncated=None):
 		self.message_id = message_id
 		self.time = time
 		self.sender = sender
 		self.content = content
 		self.parent = parent
 		self.previous_edit_id = previous_edit_id
-		self.encryption_key = encryption_key
+		self.encryption_key_id = encryption_key_id
 		self.edited = edited
 		self.deleted = deleted
 		self.truncated = truncated
@@ -201,7 +204,7 @@ class Message():
 			d.get("content"),
 			d.get("parent", None),
 			d.get("previous_edit_id", None),
-			d.get("encryption_key", None),
+			d.get("encryption_key_id", None),
 			d.get("edited", None),
 			d.get("deleted", None),
 			d.get("truncated", None)
