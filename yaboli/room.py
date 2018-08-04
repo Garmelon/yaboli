@@ -188,7 +188,7 @@ class Room:
 			#"logout-event":       self._event_logout,
 			"network-event":      self._event_network,
 			"nick-event":         self._event_nick,
-			#"edit-message-event": self._event_edit_message,
+			"edit-message-event": self._event_edit_message,
 			"part-event":         self._event_part,
 			"ping-event":         self._event_ping,
 			"pm-initiate-event":  self._event_pm_initiate,
@@ -255,6 +255,10 @@ class Room:
 			session.nick = to_nick
 
 		await self._inhabitant.on_nick(self, sid, uid, from_nick, to_nick)
+
+	async def _event_edit_message(self, data):
+		message = Message.from_dict(data)
+		await self._inhabitant.on_edit(self, message)
 
 	async def _event_part(self, data):
 		session = Session.from_dict(data)
@@ -432,6 +436,9 @@ class Inhabitant:
 
 	async def on_forward(self, room, message):
 		await self.on_send(room, message)
+
+	async def on_edit(self, room, message):
+		pass
 
 	async def on_pm(self, room, from_uid, from_nick, from_room, pm_id):
 		pass
