@@ -19,23 +19,14 @@ GENERAL_RE = re.compile(r"!(\S+)\s*([\S\s]*)")
 # Decorator magic for commands and triggers.
 # I think commands could probably be implemented as some kind of triggers,
 # but I'm not gonna do that now because commands are working fine this way.
-def command(commandname, specific=True, args=True):
+def command(*commands):
 	def decorator(func):
-		async def wrapper(self, room, message, *args_, **kwargs_):
-			if specific:
-				result = self._parse_command(message.content, specific=room.session.nick)
-			else:
-				result = self._parse_command(message.content)
-			if result is None: return False
-			cmd, argstr = result
-			if cmd != commandname: return False
-			if args:
-				await func(self, room, message, argstr, *args_, **kwargs_)
+		async def wrapper(self, room, message, command, *args, **kwargs):
+			if command in commands:
+				await func(self, room, message, *args, **kwargs)
 				return True
 			else:
-				if argstr: return
-				await func(self, room, message, *args_, **kwargs_)
-				return True
+				return False
 		return wrapper
 	return decorator
 
@@ -77,30 +68,41 @@ class Bot(Inhabitant):
 		if room:
 			await room.exit()
 
+	# COMMANDS
+
+	async def on_command_specific(self, room, message, command, nick, argstr):
+		pass
+
+	async def on_command_general(self, room, message, command, argstr):
+		pass
+
 	# INHABITED FUNCTIONS
+
+	async def on_send(self, room, message):
+		match = SPECIFIC_RE.fullmatch(message.content)
+		if match:
+			command, nick, argstr = match.groups()
+			await self.on_command_specific(room, message, command, nick, argstr)
+
+		match = GENERAL_RE.fullmatch(message.content)
+		if match:
+			command, argstr = match.groups()
+			await self.on_command_general(room, message, command, argstr)
 
 	async def on_stopped(self, room):
 		await self.part_room(room.roomname)
 
 	# BOTRULEZ
 
-	@command("ping", specific=False, args=False)
-	async def botrulez_ping_general(self, room, message, text="Pong!"):
+	@command("ping")
+	async def botrulez_ping(self, room, message, text="Pong!"):
 		await room.send(text, message.mid)
 
-	@command("ping", specific=True, args=False)
-	async def botrulez_ping_specific(self, room, message, text="Pong!"):
+	@command("help")
+	async def botrulez_help(self, room, message, text="Placeholder help text"):
 		await room.send(text, message.mid)
 
-	@command("help", specific=False, args=False)
-	async def botrulez_help_general(self, room, message, text="Placeholder help text"):
-		await room.send(text, message.mid)
-
-	@command("help", specific=True, args=False)
-	async def botrulez_help_specific(self, room, message, text="Placeholder help text"):
-		await room.send(text, message.mid)
-
-	@command("uptime", specific=True, args=False)
+	@command("uptime")
 	async def botrulez_uptime(self, room, message):
 		now = time.time()
 		startformat = format_time(room.start_time)
@@ -108,12 +110,12 @@ class Bot(Inhabitant):
 		text = f"/me has been up since {startformat} ({deltaformat})"
 		await room.send(text, message.mid)
 
-	@command("kill", specific=True, args=False)
+	@command("kill")
 	async def botrulez_kill(self, room, message, text="/me dies"):
 		await room.send(text, message.mid)
 		await self.part_room(room.roomname)
 
-	@command("restart", specific=True, args=False)
+	@command("restart")
 	async def botrulez_restart(self, room, message, text="/me restarts"):
 		await room.send(text, message.mid)
 		await self.part_room(room.roomname)
@@ -192,9 +194,9 @@ class Bot(Inhabitant):
 
 	@staticmethod
 	def _parse_command(content, specific=None):
-		if specific is not None:
+		if specific:
 			match = SPECIFIC_RE.fullmatch(content)
-			if match and similar(match.group(2), specific):
+			if match:
 				return match.group(1), match.group(3)
 		else:
 			match = GENERAL_RE.fullmatch(content)
