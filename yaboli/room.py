@@ -204,9 +204,8 @@ class Room:
 		logger.info(f"&{self.roomname}:Received bounce-event")
 		if self.password is not None:
 			try:
-				data = {"type": passcode, "passcode": self.password}
-				response = await self._connection.send("auth", data=data)
-				rdata = response.get("data")
+				data = {"type": "passcode", "passcode": self.password}
+				ptype, rdata, error, throttled = await self._connection.send("auth", data=data)
 				success = rdata.get("success")
 				if not success:
 					reason = rdata.get("reason")
