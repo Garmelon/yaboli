@@ -106,6 +106,7 @@ class Connection:
 					)
 				self._ws = await asyncio.wait_for(ws, timeout)
 			except (websockets.InvalidHandshake, socket.gaierror, asyncio.TimeoutError): # not websockets.InvalidURI
+				logger.warn(f"Connection attempt failed, {tries} tries left.")
 				self._ws = None
 
 				if tries is not None:
