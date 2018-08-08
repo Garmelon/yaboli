@@ -79,7 +79,7 @@ class Connection:
 		if self._ws:
 			await self._ws.close()
 
-	async def _connect(self, tries):
+	async def _connect(self, tries, timeout=10):
 		"""
 		Attempt to connect to a room.
 		If the Connection is already connected, it attempts to reconnect.
@@ -97,10 +97,15 @@ class Connection:
 			try:
 				if self.cookiejar:
 					cookies = [("Cookie", cookie) for cookie in self.cookiejar.sniff()]
-					self._ws = await websockets.connect(self.url, max_size=None, extra_headers=cookies)
+					ws = asyncio.ensure_future(
+						websockets.connect(self.url, max_size=None, extra_headers=cookies)
+					)
 				else:
-					self._ws = await websockets.connect(self.url, max_size=None)
-			except (websockets.InvalidHandshake, socket.gaierror): # not websockets.InvalidURI
+					ws = asyncio.ensure_future(
+						websockets.connect(self.url, max_size=None)
+					)
+				self._ws = await asyncio.wait_for(ws, timeout)
+			except (websockets.InvalidHandshake, socket.gaierror, asyncio.TimeoutError): # not websockets.InvalidURI
 				self._ws = None
 
 				if tries is not None:
