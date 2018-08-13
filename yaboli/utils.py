@@ -10,7 +10,7 @@ __all__ = [
 	"parallel", "asyncify",
 	"mention", "normalize", "similar",
 	"format_time", "format_time_delta",
-	"Session", "Listing", "Message",
+	"Session", "PersonalAccountView", "Listing", "Message",
 ]
 
 
@@ -113,6 +113,20 @@ class Session:
 	def client_type(self):
 		# account, agent or bot
 		return self.user_id.split(":")[0]
+
+class PersonalAccountView:
+	def __init__(self, account_id, name, email):
+		self.account_id = account_id
+		self.name = name
+		self.email = email
+
+	@property
+	def aid(self):
+		return self.account_id
+
+	@aid.setter
+	def aid(self, new_aid):
+		self.account_id = new_aid
 
 class Listing:
 	def __init__(self):
