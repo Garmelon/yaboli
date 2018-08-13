@@ -162,6 +162,9 @@ class Bot(Inhabitant):
 		#if escape or quote:
 			#return None # syntax error
 
+		if escape:
+			arg += "\\"
+
 		if len(arg) > 0:
 			args.append(arg)
 
