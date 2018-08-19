@@ -5,12 +5,6 @@ import logging
 import yaboli
 from yaboli.utils import *
 
-# Turn all debugging on
-asyncio.get_event_loop().set_debug(True)
-#logging.getLogger("asyncio").setLevel(logging.INFO)
-#logging.getLogger("yaboli").setLevel(logging.DEBUG)
-logging.basicConfig(level=logging.DEBUG)
-
 
 class ExampleBot(yaboli.Bot):
 	async def on_command_specific(self, room, message, command, nick, argstr):
@@ -34,6 +28,8 @@ class ExampleBot(yaboli.Bot):
 			await self.botrulez_help(room, message, command, text=short_help)
 
 def main(configfile):
+	logging.basicConfig(level=logging.INFO)
+
 	config = configparser.ConfigParser(allow_no_value=True)
 	config.read(configfile)
 
