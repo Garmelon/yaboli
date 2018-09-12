@@ -112,6 +112,7 @@ class Connection:
 				if tries is not None:
 					tries -= 1
 					if tries <= 0:
+						logger.warn(f"{self.url}:Ran out of tries")
 						return False
 
 				await asyncio.sleep(delay)
@@ -161,6 +162,7 @@ class Connection:
 		"""
 
 		while not self._stopped:
+			logger.debug(f"{self.url}:Connecting...")
 			connected = await self._connect(self.reconnect_attempts)
 			if connected:
 				logger.debug(f"{self.url}:Connected")

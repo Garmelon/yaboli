@@ -8,7 +8,7 @@ from .utils import *
 
 
 logger = logging.getLogger(__name__)
-__all__ = ["Bot", "command", "trigger"]
+__all__ = ["Bot", "command", "trigger", "Module", "ModuleBot"]
 
 
 # Some command stuff
@@ -205,3 +205,67 @@ class Bot(Inhabitant):
 			match = GENERAL_RE.fullmatch(content)
 			if match:
 				return match.group(1), match.group(2)
+
+class Module(Inhabitant):
+	SHORT_DESCRIPTION = "short module description"
+	LONG_DESCRIPTION = "long module description"
+	SHORT_HELP = "short !help"
+	LONG_HELP = "long !help"
+
+	async def on_command_specific(self, room, message, command, nick, argstr, mentioned):
+		pass
+
+	async def on_command_general(self, room, message, command, argstr):
+		pass
+
+class ModuleBot(Bot):
+	def __init__(self, module, nick, *args, cookiefile=None, **kwargs):
+		super().__init__(nick, cookiefile=cookiefile)
+		self.module = module
+
+	async def on_created(self, room):
+		await self.module.on_created(room)
+
+	async def on_connected(self, room, log):
+		await self.module.on_connected(room, log)
+
+	async def on_disconnected(self, room):
+		await self.module.on_disconnected(room)
+
+	async def on_stopped(self, room):
+		await self.module.on_stopped(room)
+
+	async def on_join(self, room, session):
+		await self.module.on_join(room, session)
+
+	async def on_part(self, room, session):
+		await self.module.on_part(room, session)
+
+	async def on_nick(self, room, sid, uid, from_nick, to_nick):
+		await self.module.on_nick(room, sid, uid, from_nick, to_nick)
+
+	async def on_send(self, room, message):
+		await super().on_send(room, message)
+
+		await self.module.on_send(room, message)
+
+	async def on_command_specific(self, room, message, command, nick, argstr):
+		if similar(nick, room.session.nick):
+			await self.module.on_command_specific(room, message, command, nick, argstr, True)
+
+			if not argstr:
+				await self.botrulez_ping(room, message, command)
+				await self.botrulez_help(room, message, command, text=self.module.LONG_HELP)
+				await self.botrulez_uptime(room, message, command)
+				await self.botrulez_kill(room, message, command)
+				await self.botrulez_restart(room, message, command)
+
+		else:
+			await self.module.on_command_specific(room, message, command, nick, argstr, False)
+
+	async def on_command_general(self, room, message, command, argstr):
+		await self.module.on_command_general(room, message, command, argstr)
+
+		if not argstr:
+			await self.botrulez_ping(room, message, command)
+			await self.botrulez_help(room, message, command, text=self.module.SHORT_HELP)
