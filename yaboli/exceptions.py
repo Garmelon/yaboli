@@ -5,6 +5,21 @@ __all__ = ["EuphException", "JoinException", "CouldNotConnectException",
 class EuphException(Exception):
     pass
 
+# Connection stuff
+
+class IncorrectStateException(EuphException):
+    """
+    A Connection function was called while the Connection was in the incorrect
+    state.
+    """
+    pass
+
+class ConnectionClosedException(EuphException):
+    """
+    The connection was closed unexpectedly.
+    """
+    pass
+
 # Joining a room
 
 class JoinException(EuphException):
