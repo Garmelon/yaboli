@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 import websockets
 
@@ -98,13 +98,14 @@ class Connection:
         self._connected_condition = asyncio.Condition()
         self._disconnected_condition = asyncio.Condition()
 
-        self._event_loop = None
+        self._event_loop: Optional[asyncio.Task[None]] = None
 
         # These must always be (re)set together. If one of them is None, all
         # must be None.
         self._ws = None
-        self._awaiting_replies = None
-        self._ping_check = None
+        self._awaiting_replies: Optional[Dict[str, Callable[...,
+            Awaitable[None]]]] = None
+        self._ping_check: Optional[asyncio.Task[None]] = None
 
     def register_event(self,
             event: str,
@@ -164,7 +165,7 @@ class Connection:
         except websockets.InvalidStatusCode:
             return False
 
-    async def _disconnect_in(self, delay):
+    async def _disconnect_in(self, delay: int) -> None:
         await asyncio.sleep(delay)
         await self._disconnect()
 
@@ -265,8 +266,10 @@ class Connection:
 
         await self._disconnect()
 
-        await self._event_loop
-        self._event_loop = None
+        # We know that _event_loop is not None, but this is to keep mypy happy.
+        if self._event_loop is not None:
+            await self._event_loop
+            self._event_loop = None
 
         self._state = self._NOT_RUNNING
 

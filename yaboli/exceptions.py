@@ -1,6 +1,19 @@
-__all__ = ["EuphException", "JoinException", "CouldNotConnectException",
-        "CouldNotAuthenticateException", "RoomClosedException",
-        "RateLimitException", "NotLoggedInException", "UnauthorizedException"]
+__all__ = [
+        "EuphException",
+        # Connection stuff
+        "IncorrectStateException",
+        "ConnectionClosedException",
+        # Joining a room
+        "JoinException",
+        "CouldNotConnectException",
+        "CouldNotAuthenticateException",
+        # Doing stuff in a room
+        "RoomClosedException",
+        # Other stuff
+        "RateLimitException",
+        "NotLoggedInException",
+        "UnauthorizedException",
+]
 
 class EuphException(Exception):
     pass
