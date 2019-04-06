@@ -258,7 +258,11 @@ class Connection:
         if self._state != self._RUNNING:
             raise IncorrectStateException("This should never happen.")
 
-        # Now, we can properly disconnect ^^
+        # Now we're sure we're in the _RUNNING state, we can set our state.
+        # Important: No await-ing has occurred between checking the state and
+        # setting it.
+        self._state = self._DISCONNECTING
+
         await self._disconnect()
 
         await self._event_loop
