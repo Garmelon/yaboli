@@ -30,7 +30,7 @@ class Connection:
     2. call connect()
     3. send and receive packets, reconnecting automatically when connection is
     lost
-    4. call disconnect()
+    4. call disconnect(), then go to 2.
 
 
     IN PHASE 1, parameters such as the url the Connection should connect to are
@@ -67,12 +67,13 @@ class Connection:
     Events ending with "-ing" ("reconnecting", "disconnecting") are fired at
     the beginning of the process they represent. Events ending with "-ed"
     ("connected", "reconnected") are fired after the process they represent has
-    completed.
+    finished.
 
     Examples for the last category of events include "on_message-event",
     "on_part-event" and "on_ping".
     """
 
+    # Maximum duration between euphoria's ping messages
     PING_TIMEOUT = 60 # seconds
 
     _NOT_RUNNING = "not running"
@@ -93,9 +94,9 @@ class Connection:
         # _DISCONNECTING.
         #
         # Always be careful to set any state-dependent variables.
-        self._status = _NOT_RUNNING
-        self._connected_event = asyncio.Event()
-        self._disconnected_event = asyncio.Event()
+        self._state = self._NOT_RUNNING
+        self._connected_condition = asyncio.Condition()
+        self._disconnected_condition = asyncio.Condition()
 
         self._event_loop = None
 
@@ -185,9 +186,17 @@ class Connection:
         if await self._connect():
             self._event_loop = asyncio.create_task(self._run())
             self._state = self._RUNNING
+
+            async with self._connected_condition:
+                self._connected_condition.notify_all()
+
             return True
         else:
             self._state = self._NOT_RUNNING
+
+            async with self._connected_condition:
+                self._connected_condition.notify_all()
+
             return False
 
     async def _reconnect(self) -> bool:
@@ -205,6 +214,8 @@ class Connection:
         success =  await self._connect()
 
         self._state = self._RUNNING
+        async with self._connected_condition:
+            self._connected_condition.notify_all()
 
         return success
 
@@ -219,7 +230,8 @@ class Connection:
         if self._state in [self._CONNECTING, self._RECONNECTING]:
             # After _CONNECTING, the state can either be _NOT_RUNNING or
             # _RUNNING. After _RECONNECTING, the state must be _RUNNING.
-            await self._connected_event.wait()
+            async with self._connected_condition:
+                await self._connected_condition.wait()
             # The state is now either _NOT_RUNNING or _RUNNING.
 
         # Possible states left: _NOT_RUNNING, _RUNNING, _DISCONNECTING
@@ -234,7 +246,9 @@ class Connection:
             # Wait until the disconnecting currently going on is complete. This
             # is to prevent the disconnect() function from ever returning
             # without the disconnecting process being finished.
-            await self._disconnected_event.wait()
+            async with self._disconnected_condition:
+                await self._disconnected_condition.wait()
+
             return
 
         # Possible states left: _RUNNING
@@ -253,8 +267,8 @@ class Connection:
         self._state = self._NOT_RUNNING
 
         # Notify all other disconnect()s waiting
-        self._disconnected_event.set()
-        self._disconnected_event.clear()
+        async with self._disconnected_condition:
+            self._disconnected_condition.notify_all()
 
     # Running
 
