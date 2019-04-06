@@ -1,17 +1,21 @@
-from .bot import *
-from .cookiejar import *
-from .connection import *
-from .database import *
-from .exceptions import *
-from .room import *
-from .utils import *
+from typing import List
 
-__all__ = (
-	bot.__all__ +
-	connection.__all__ +
-	cookiejar.__all__ +
-	database.__all__ +
-	exceptions.__all__ +
-	room.__all__ +
-	utils.__all__
-)
+__all__: List[str] = []
+
+from .client import *
+__all__ += client.__all__
+
+from .exceptions import *
+__all__ += client.__all__
+
+from .message import *
+__all__ += exceptions.__all__
+
+from .room import *
+__all__ += message.__all__
+
+__all__ += room.__all__
+from .user import *
+
+__all__ += user.__all__
+from .util import *

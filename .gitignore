@@ -1,2 +1,12 @@
-**/__pycache__/
-*.cookie
+# python stuff
+*/__pycache__/
+
+# venv stuff
+bin/
+include/
+lib/
+lib64
+pyvenv.cfg
+
+# mypy stuff
+.mypy_cache/

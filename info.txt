@@ -1,0 +1,22 @@
+Signature of a normal function:
+
+def a(b: int, c: str) -> bool:
+	pass
+
+a # type: Callable[[int, str], bool]
+
+Signature of an async function:
+
+async def a(b: int, c: str) -> bool:
+	pass
+
+a # type: Callable[[int, str], Awaitable[bool]]
+
+
+
+Enable logging (from the websockets docs):
+
+import logging
+logger = logging.getLogger('websockets')
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
