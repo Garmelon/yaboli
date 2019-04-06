@@ -20,3 +20,20 @@ import logging
 logger = logging.getLogger('websockets')
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
+
+Output format: See https://docs.python.org/3/library/logging.html#formatter-objects
+
+Example formatting:
+
+FORMAT = "{asctime} [{levelname:<7}] <{name}> {funcName}(): {message}"
+DATE_FORMAT = "%F %T"
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter(
+    fmt=FORMAT,
+    datefmt=DATE_FORMAT,
+    style="{"
+))
+
+logger = logging.getLogger('yaboli')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)

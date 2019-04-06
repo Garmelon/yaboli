@@ -127,16 +127,21 @@ class Connection:
         if self._ws is None:
             # This indicates that _ws, _awaiting_replies and _ping_check are
             # cleaned up
+            logger.debug("ws connection already cleaned up")
             return
 
+        logger.debug("Closing ws connection")
         await self._ws.close()
 
+        logger.debug("Cancelling tasks awaiting replies")
         for tasks in self._awaiting_replies.values():
             for task in tasks:
                 task.cancel()
 
+        logger.debug("Cancelling ping check task")
         self._ping_check.cancel()
 
+        logger.debug("Cleaning up variables")
         self._ws = None
         self._awaiting_replies = None
         self._ping_check = None
@@ -152,10 +157,12 @@ class Connection:
         """
 
         try:
+            logger.debug(f"Creating ws connection to {self._url!r}")
             ws = await websockets.connect(self._url)
 
             self._ws = ws
             self._awaiting_replies = {}
+            logger.debug("Starting ping check")
             self._ping_check = asyncio.create_task(
                     self._disconnect_in(self.PING_TIMEOUT))
 
@@ -163,11 +170,19 @@ class Connection:
 
         # TODO list all of the ways that creating a connection can go wrong
         except websockets.InvalidStatusCode:
+            logger.debug("Connection failed")
             return False
 
     async def _disconnect_in(self, delay: int) -> None:
         await asyncio.sleep(delay)
-        await self._disconnect()
+        logger.debug(f"Disconnect timeout of {delay}s elapsed, disconnecting...")
+        # Starting the _disconnect function in another task because otherwise,
+        # its own CancelledError would inhibit _disconnect() from completing
+        # the disconnect.
+        #
+        # We don't need to check the state because _disconnect_in only runs
+        # while the _state is _RUNNING.
+        asyncio.create_task(self._disconnect())
 
     async def connect(self) -> bool:
         # Special exception message for _CONNECTING.
@@ -179,26 +194,28 @@ class Connection:
             raise IncorrectStateException(("disconnect() must complete before"
                 " connect() may be called again."))
 
+        logger.info("Connecting...")
+
         # Now we're sure we're in the _NOT_RUNNING state, we can set our state.
         # Important: No await-ing has occurred between checking the state and
         # setting it.
         self._state = self._CONNECTING
 
-        if await self._connect():
+        success = await self._connect()
+
+        if success:
+            logger.debug("Starting event loop")
             self._event_loop = asyncio.create_task(self._run())
             self._state = self._RUNNING
-
-            async with self._connected_condition:
-                self._connected_condition.notify_all()
-
-            return True
         else:
             self._state = self._NOT_RUNNING
 
-            async with self._connected_condition:
-                self._connected_condition.notify_all()
+        logger.debug("Sending connected notification")
+        async with self._connected_condition:
+            self._connected_condition.notify_all()
 
-            return False
+        logger.debug("Connected" if success else "Connection failed")
+        return success
 
     async def _reconnect(self) -> bool:
         """
@@ -209,20 +226,27 @@ class Connection:
         if self._state != self._RUNNING:
             raise IncorrectStateException()
 
+        logger.info("Reconnecting...")
+
         self._state = self._RECONNECTING
 
         await self._disconnect()
         success =  await self._connect()
 
         self._state = self._RUNNING
+
+        logger.debug("Sending connected notification")
         async with self._connected_condition:
             self._connected_condition.notify_all()
 
+        logger.debug("Reconnected" if success else "Reconnection failed")
         return success
 
     async def disconnect(self) -> None:
-        # This function is kinda complex. The comments make it harder to read,
-        # but hopefully easier to understand.
+        # Fun fact: This function consists of 24 lines of comments, 19 lines of
+        # code, 16 lines of whitespace and 7 lines of logging statements,
+        # making for a total of 66 lines. Its comments to code ratio is about
+        # 1.263.
 
         # Possible states left: _NOT_RUNNING, _CONNECTING, _RUNNING,
         # _RECONNECTING, _DISCONNECTING
@@ -239,6 +263,7 @@ class Connection:
 
         if self._state == self._NOT_RUNNING:
             # No need to do anything since we're already disconnected
+            logger.debug("Already disconnected")
             return
 
         # Possible states left: _RUNNING, _DISCONNECTING
@@ -247,9 +272,11 @@ class Connection:
             # Wait until the disconnecting currently going on is complete. This
             # is to prevent the disconnect() function from ever returning
             # without the disconnecting process being finished.
+            logger.debug("Already disconnecting, waiting for it to finish...")
             async with self._disconnected_condition:
                 await self._disconnected_condition.wait()
 
+            logger.debug("Disconnected, finished waiting")
             return
 
         # Possible states left: _RUNNING
@@ -259,6 +286,8 @@ class Connection:
         if self._state != self._RUNNING:
             raise IncorrectStateException("This should never happen.")
 
+        logger.info("Disconnecting...")
+
         # Now we're sure we're in the _RUNNING state, we can set our state.
         # Important: No await-ing has occurred between checking the state and
         # setting it.
@@ -267,6 +296,7 @@ class Connection:
         await self._disconnect()
 
         # We know that _event_loop is not None, but this is to keep mypy happy.
+        logger.debug("Waiting for event loop")
         if self._event_loop is not None:
             await self._event_loop
             self._event_loop = None
@@ -274,8 +304,11 @@ class Connection:
         self._state = self._NOT_RUNNING
 
         # Notify all other disconnect()s waiting
+        logger.debug("Send disconnected notification")
         async with self._disconnected_condition:
             self._disconnected_condition.notify_all()
+
+        logger.info("Disconnected")
 
     # Running
 
