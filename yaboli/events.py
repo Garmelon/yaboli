@@ -19,7 +19,7 @@ class Events:
         self._callbacks[event] = callback_list
         logger.debug(f"Registered callback for event {event!r}")
 
-    async def fire(self, event: str, *args: Any, **kwargs: Any) -> None:
+    def fire(self, event: str, *args: Any, **kwargs: Any) -> None:
         logger.debug(f"Calling callbacks for event {event!r}")
         for callback in self._callbacks.get(event, []):
             asyncio.create_task(callback(*args, **kwargs))
