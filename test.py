@@ -20,7 +20,8 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 async def main():
-    conn = Connection("wss://echo.websocket.org")
+    conn = Connection("wss://euphoria.io/room/test/ws")
+    #conn = Connection("wss://euphoria.io/room/cabal/ws") # password protected
 
     print()
     print("  DISCONNECTING TWICE AT THE SAME TIME")

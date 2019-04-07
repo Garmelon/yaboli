@@ -1,7 +1,7 @@
-from .user import User, LiveUser
-
-from typing import TYPE_CHECKING, Optional
 import datetime
+from typing import TYPE_CHECKING, Optional
+
+from .user import LiveUser, User
 
 if TYPE_CHECKING:
     from .client import Client

@@ -1,8 +1,8 @@
+from typing import List, Optional
+
 from .exceptions import *
 from .message import LiveMessage
 from .user import LiveUser
-
-from typing import List, Optional
 
 __all__ = ["Room"]
 
@@ -65,8 +65,8 @@ class Room:
 
     def __init__(self,
             room_name: str,
-            nick: str = None,
-            password: str = None):
+            nick: str = "",
+            password: Optional[str] = None) -> None:
         pass
 
         self.closed = False

@@ -1,6 +1,6 @@
-from .util import mention, atmention
-
 from typing import TYPE_CHECKING
+
+from .util import atmention, mention
 
 if TYPE_CHECKING:
     from .client import Client

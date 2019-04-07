@@ -1,6 +1,6 @@
 __all__ = [
         "EuphException",
-        # Connection stuff
+        # Connection exceptions
         "IncorrectStateException",
         "ConnectionClosedException",
         # Joining a room
@@ -9,16 +9,12 @@ __all__ = [
         "CouldNotAuthenticateException",
         # Doing stuff in a room
         "RoomClosedException",
-        # Other stuff
-        "RateLimitException",
-        "NotLoggedInException",
-        "UnauthorizedException",
 ]
 
 class EuphException(Exception):
     pass
 
-# Connection stuff
+# Connection exceptions
 
 class IncorrectStateException(EuphException):
     """
@@ -63,17 +59,4 @@ class RoomClosedException(EuphException):
     This means that phase 4 (see the docstring of Room) has been initiated or
     completed.
     """
-    pass
-
-# exception for having no username?
-
-# Maybe these will become real exceptions one day?
-
-class RateLimitException(EuphException):
-    pass
-
-class NotLoggedInException(EuphException):
-    pass
-
-class UnauthorizedException(EuphException):
     pass

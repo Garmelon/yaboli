@@ -1,8 +1,8 @@
+from typing import List, Optional
+
 from .message import Message
 from .room import Room
 from .user import User
-
-from typing import List, Optional
 
 __all__ = ["Client"]
 
@@ -12,8 +12,8 @@ class Client:
 
     async def join(self,
             room_name: str,
-            password: str = None,
-            nick: str = None) -> Room:
+            password: Optional[str] = None,
+            nick: str = "") -> Room:
         pass
 
     async def get(self, room_name: str) -> Optional[Room]:
