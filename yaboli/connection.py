@@ -64,15 +64,15 @@ class Connection:
     - "reconnecting" : No arguments
     - "reconnected" : No arguments
     - "disconnecting" : No arguments
-    - "on_<euph event name>": the packet, parsed as JSON
+    - "<euph event name>": the packet, parsed as JSON
 
     Events ending with "-ing" ("reconnecting", "disconnecting") are fired at
     the beginning of the process they represent. Events ending with "-ed"
     ("connected", "reconnected") are fired after the process they represent has
     finished.
 
-    Examples for the last category of events include "on_message-event",
-    "on_part-event" and "on_ping".
+    Examples for the last category of events include "message-event",
+    "part-event" and "ping".
     """
 
     # Maximum duration between euphoria's ping messages. Euphoria usually sends
@@ -113,6 +113,8 @@ class Connection:
         self._ws = None
         self._awaiting_replies: Optional[Dict[str, asyncio.Future[Any]]] = None
         self._ping_check: Optional[asyncio.Task[None]] = None
+
+        self.register_event("ping-event", self._ping_pong)
 
     def register_event(self,
             event: str,
@@ -438,16 +440,13 @@ class Connection:
 
         # Then, send the corresponding event
         packet_type = packet["type"]
-        self._events.fire(f"on_{packet_type}", packet)
+        self._events.fire(packet_type, packet)
 
-        # Finally, if it's a ping command, reply as per
-        # http://api.euphoria.io/#ping
-        if packet_type == "ping-event":
-            logger.debug("Pong!")
-            asyncio.create_task(self._send_if_possible(
-                "ping-reply",
-                {"time": packet["data"]["time"]}
-            ))
+        # Finally, reset the ping check
+        logger.debug("Resetting ping check")
+        self._ping_check.cancel()
+        self._ping_check = asyncio.create_task(
+                self._disconnect_in(self.PING_TIMEOUT))
 
     async def _send_if_possible(self, packet_type: str, data: Any,) -> None:
         """
@@ -461,6 +460,13 @@ class Connection:
             await self.send(packet_type, data, await_reply=False)
         except IncorrectStateException:
             logger.debug("Could not send (disconnecting or already disconnected)")
+
+    async def _ping_pong(self, packet):
+        # Implements http://api.euphoria.io/#ping and is called as "ping-event"
+        # callback
+        logger.debug("Pong!")
+        await self._send_if_possible("ping-reply",
+                {"time": packet["data"]["time"]})
 
     async def send(self,
             packet_type: str,
