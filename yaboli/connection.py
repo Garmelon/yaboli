@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+import socket
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 import websockets
@@ -73,9 +75,14 @@ class Connection:
     "on_part-event" and "on_ping".
     """
 
-    # Maximum duration between euphoria's ping messages
-    PING_TIMEOUT = 60 # seconds
+    # Maximum duration between euphoria's ping messages. Euphoria usually sends
+    # ping messages every 20 to 30 seconds.
+    PING_TIMEOUT = 40 # seconds
 
+    # The delay between reconnect attempts.
+    RECONNECT_DELAY = 40 # seconds
+
+    # States the Connection may be in
     _NOT_RUNNING = "not running"
     _CONNECTING = "connecting"
     _RUNNING = "running"
@@ -111,6 +118,12 @@ class Connection:
             event: str,
             callback: Callable[..., Awaitable[None]]
             ) -> None:
+        """
+        Register an event callback.
+
+        For an overview of the possible events, see the Connection docstring.
+        """
+
         self._events.register(event, callback)
 
     # Connecting and disconnecting
@@ -171,8 +184,8 @@ class Connection:
 
             return True
 
-        # TODO list all of the ways that creating a connection can go wrong
-        except websockets.InvalidStatusCode:
+        except (websockets.InvalidHandshake, websockets.InvalidStatusCode,
+                socket.gaierror):
             logger.debug("Connection failed")
             return False
 
@@ -194,7 +207,7 @@ class Connection:
         """
 
         if self._state != self._RUNNING:
-            raise IncorrectStateException()
+            raise IncorrectStateException("This should never happen")
 
         logger.debug("Reconnecting...")
         self._events.fire("reconnecting")
@@ -214,6 +227,20 @@ class Connection:
         return success
 
     async def connect(self) -> bool:
+        """
+        Attempt to create a connection to the Connection's url.
+
+        Returns True if the Connection could connect to the url and is now
+        running. Returns False if the Connection could not connect to the url
+        and is not running.
+
+        Exceptions:
+
+        This function must be called while the connection is not running,
+        otherwise an IncorrectStateException will be thrown. To stop a
+        Connection, use disconnect().
+        """
+
         # Special exception message for _CONNECTING.
         if self._state == self._CONNECTING:
             raise IncorrectStateException(("connect() may not be called"
@@ -248,10 +275,12 @@ class Connection:
         return success
 
     async def disconnect(self) -> None:
-        # Fun fact: This function consists of 25 lines of comments, 19 lines of
-        # code, 16 lines of whitespace and 7 lines of logging statements,
-        # making for a total of 67 lines. Its comments to code ratio is about
-        # 1.316.
+        """
+        Close and stop the Connection, if it is currently (re-)connecting or
+        running. Does nothing if the Connection is not running.
+
+        This function returns once the Connection has stopped running.
+        """
 
         # Possible states left: _NOT_RUNNING, _CONNECTING, _RUNNING,
         # _RECONNECTING, _DISCONNECTING
@@ -318,6 +347,38 @@ class Connection:
 
         logger.debug("Disconnected")
 
+    async def reconnect(self) -> None:
+        """
+        Forces the Connection to reconnect.
+
+        This function may return before the reconnect process is finished.
+
+        Exceptions:
+
+        This function must be called while the connection is (re-)connecting or
+        running, otherwise an IncorrectStateException will be thrown.
+        """
+
+        if self._state in [self._CONNECTING, self._RECONNECTING]:
+            logger.debug("Already (re-)connecting, waiting for it to finish...")
+            async with self._connected_condition:
+                await self._connected_condition.wait()
+
+            logger.debug("(Re-)connected, finished waiting")
+            return
+
+        if self._state != self._RUNNING:
+            raise IncorrectStateException(("reconnect() may not be called while"
+                " the connection is not running."))
+
+        # Disconnecting via task because otherwise, the _connected_condition
+        # might fire before we start waiting for it.
+        #
+        # The event loop will reconenct after the ws connection has been
+        # disconnected.
+        logger.debug("Disconnecting and letting the event loop reconnect")
+        await self._disconnect()
+
     # Running
 
     async def _run(self) -> None:
@@ -326,6 +387,14 @@ class Connection:
         """
 
         while True:
+            # The "Exiting event loop" checks are a bit ugly. They're in place
+            # so that the event loop exits on its own at predefined positions
+            # instead of randomly getting thrown a CancelledError.
+            #
+            # Now that I think about it, the whole function looks kinda ugly.
+            # Maybe one day (yeah, right), I'll clean this up. I want to get it
+            # working first though.
+
             if self._state != self._RUNNING:
                 logger.debug("Exiting event loop")
                 return
@@ -334,9 +403,9 @@ class Connection:
                 try:
                     logger.debug("Receiving ws packets")
                     async for packet in self._ws:
-                        self._process_packet(packet)
-                except Exception as e: # TODO use proper exceptions
-                    print(e)
+                        packet_data = json.loads(packet)
+                        self._process_packet(packet_data)
+                except websockets.ConnectionClosed:
                     logger.debug("Stopped receiving ws packets")
             else:
                 logger.debug("No ws connection found")
@@ -354,10 +423,32 @@ class Connection:
                     return
 
                 logger.debug(f"Sleeping for {self.RECONNECT_DELAY}s and retrying")
-                await asyncio.sleep(self._RECONNECT_DELAY)
+                await asyncio.sleep(self.RECONNECT_DELAY)
 
-    def _process_packet(self, packet):
-        print(str(packet)[:50])
+    def _process_packet(self, packet: Any) -> None:
+        print(str(packet)[:100]) # TODO implement
 
-    async def send(self, packet: Any) -> Any:
+    async def send(self,
+            packet_type: str,
+            data: Any,
+            await_reply: bool = True
+            ) -> Optional[Any]:
+        """
+        Send a packet of type packet_type to the server.
+
+        The object passed as data will make up the packet's "data" section and
+        must be json-serializable.
+
+        This function will return the complete json-deserialized reply package,
+        unless await_reply is set to False, in which case it will immediately
+        return None.
+
+        Exceptions:
+
+        This function must be called while the Connection is (re-)connecting or
+        running, otherwise an IncorrectStateException will be thrown.
+
+        If the connection closes unexpectedly while sending the packet or
+        waiting for the reply, a ConnectionClosedException will be thrown.
+        """
         pass # TODO
