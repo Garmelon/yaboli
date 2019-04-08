@@ -24,6 +24,9 @@ class Connection:
     - Keeping the connection alive (ping, ping-reply packets)
     - Reconnecting (timeout while connecting, no pings received in some time)
 
+    It doesn't respond to any events other than the ping-event and is otherwise
+    "dumb".
+
 
 
     Life cycle of a Connection:
@@ -448,6 +451,15 @@ class Connection:
         self._ping_check = asyncio.create_task(
                 self._disconnect_in(self.PING_TIMEOUT))
 
+    async def _do_if_possible(self, coroutine: Awaitable[None]) -> None:
+        """
+        Try to run a coroutine, ignoring any IncorrectStateExceptions.
+        """
+        try:
+            await coroutine
+        except IncorrectStateException:
+            pass
+
     async def _send_if_possible(self, packet_type: str, data: Any,) -> None:
         """
         This function tries to send a packet without awaiting the reply.
@@ -462,11 +474,16 @@ class Connection:
             logger.debug("Could not send (disconnecting or already disconnected)")
 
     async def _ping_pong(self, packet):
-        # Implements http://api.euphoria.io/#ping and is called as "ping-event"
-        # callback
+        """
+        Implements http://api.euphoria.io/#ping and is called as "ping-event"
+        callback.
+        """
         logger.debug("Pong!")
-        await self._send_if_possible("ping-reply",
-                {"time": packet["data"]["time"]})
+        await self._do_if_possible(self.send(
+            "ping-reply",
+            {"time": packet["data"]["time"]}
+            await_reply=False
+        ))
 
     async def send(self,
             packet_type: str,
