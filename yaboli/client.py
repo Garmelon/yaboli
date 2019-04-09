@@ -1,8 +1,6 @@
 from typing import List, Optional
 
-from .message import Message
 from .room import Room
-from .user import User
 
 __all__ = ["Client"]
 

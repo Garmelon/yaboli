@@ -4,7 +4,7 @@
 import asyncio
 import logging
 
-from yaboli import Connection
+from yaboli import Room
 
 FORMAT = "{asctime} [{levelname:<7}] <{name}> {funcName}(): {message}"
 DATE_FORMAT = "%F %T"
@@ -19,29 +19,17 @@ logger = logging.getLogger('yaboli')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
+class TestClient:
+    def __init__(self):
+        self.room = Room("test", target_nick="testbot")
+        self.stop = asyncio.Event()
+
+    async def run(self):
+        await self.room.connect()
+        await self.stop.wait()
+
 async def main():
-    conn = Connection("wss://euphoria.io/room/test/ws")
-    #conn = Connection("wss://euphoria.io/room/cabal/ws") # password protected
-
-    print()
-    print("  DISCONNECTING TWICE AT THE SAME TIME")
-    print("Connected successfully:", await conn.connect())
-    a = asyncio.create_task(conn.disconnect())
-    b = asyncio.create_task(conn.disconnect())
-    await a
-    await b
-
-    print()
-    print("  DISCONNECTING WHILE CONNECTING (test not working properly)")
-    asyncio.create_task(conn.disconnect())
-    await asyncio.sleep(0)
-    print("Connected successfully:", await conn.connect())
-    await conn.disconnect()
-
-    print()
-    print("  WAITING FOR PING TIMEOUT")
-    print("Connected successfully:", await conn.connect())
-    await asyncio.sleep(conn.PING_TIMEOUT + 10)
-    await conn.disconnect()
+    tc = TestClient()
+    await tc.run()
 
 asyncio.run(main())

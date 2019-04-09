@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["Connection"]
 
+# This class could probably be cleaned up by introducing one or two well-placed
+# Locks – something for the next rewrite :P
+
 class Connection:
     """
     The Connection handles the lower-level stuff required when connecting to
@@ -447,7 +450,8 @@ class Connection:
 
         # Finally, reset the ping check
         logger.debug("Resetting ping check")
-        self._ping_check.cancel()
+        if self._ping_check is not None:
+            self._ping_check.cancel()
         self._ping_check = asyncio.create_task(
                 self._disconnect_in(self.PING_TIMEOUT))
 
@@ -473,7 +477,7 @@ class Connection:
         except IncorrectStateException:
             logger.debug("Could not send (disconnecting or already disconnected)")
 
-    async def _ping_pong(self, packet):
+    async def _ping_pong(self, packet: Any) -> None:
         """
         Implements http://api.euphoria.io/#ping and is called as "ping-event"
         callback.
@@ -481,7 +485,7 @@ class Connection:
         logger.debug("Pong!")
         await self._do_if_possible(self.send(
             "ping-reply",
-            {"time": packet["data"]["time"]}
+            {"time": packet["data"]["time"]},
             await_reply=False
         ))
 
@@ -489,7 +493,7 @@ class Connection:
             packet_type: str,
             data: Any,
             await_reply: bool = True
-            ) -> Optional[Any]:
+            ) -> Any:
         """
         Send a packet of type packet_type to the server.
 

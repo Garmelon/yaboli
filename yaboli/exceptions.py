@@ -8,6 +8,8 @@ __all__ = [
         "CouldNotConnectException",
         "CouldNotAuthenticateException",
         # Doing stuff in a room
+        "RoomNotConnectedException",
+        "EuphError",
         "RoomClosedException",
 ]
 
@@ -52,6 +54,21 @@ class CouldNotAuthenticateException(JoinException):
 
 # Doing stuff in a room
 
+class RoomNotConnectedException(EuphException):
+    """
+    Either the Room's connect() function has not been called or it has not
+    completed successfully.
+    """
+    pass
+
+class EuphError(EuphException):
+    """
+    The euphoria server has sent back an "error" field in its response.
+    """
+    pass
+
+# TODO This exception is not used currently, decide on whether to keep it or
+# throw it away
 class RoomClosedException(EuphException):
     """
     The room has been closed already.
