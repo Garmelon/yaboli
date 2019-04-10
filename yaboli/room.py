@@ -16,7 +16,6 @@ __all__ = ["Room"]
 
 T = TypeVar("T")
 
-
 class Room:
     """
     Events and parameters:
@@ -28,13 +27,13 @@ class Room:
         message: LiveMessage
 
     "join" - somebody has joined the room
-        user: LiveUser
+        user: LiveSession
 
     "part" - somebody has left the room
-        user: LiveUser
+        user: LiveSession
 
     "nick" - another room member has changed their nick
-        user: LiveUser
+        user: LiveSession
         from: str
         to: str
 
