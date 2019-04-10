@@ -114,8 +114,8 @@ class Session:
         server_id = data["server_id"]
         server_era = data["server_era"]
         session_id = data["session_id"]
-        is_staff = data["is_staff"]
-        is_manager = data["is_manager"]
+        is_staff = data.get("is_staff", False)
+        is_manager = data.get("is_manager", False)
         client_address = data.get("client_address")
 
         return cls(room_name, user_id, nick, server_id, server_era, session_id,

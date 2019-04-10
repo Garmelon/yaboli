@@ -136,9 +136,11 @@ class Room:
         data = packet["data"]
 
         self._session = LiveSession.from_data(self, data["session"])
-        self._account = Account.from_data(data)
         self._private = data["room_is_private"]
         self._version = data["version"]
+
+        if "account" in data:
+            self._account = Account.from_data(data)
 
         self._hello_received = True
         self._set_connected()
