@@ -204,7 +204,9 @@ class Room:
         if not self._connected_successfully:
             return False
 
-        if self._session is None or self._target_nick != self._session.nick:
+        nick_needs_updating = (self._session is None
+                or self._target_nick != self._session.nick)
+        if self._target_nick and nick_needs_updating:
             await self._nick(self._target_nick)
 
         return True
