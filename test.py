@@ -22,11 +22,34 @@ logger.addHandler(handler)
 class TestClient:
     def __init__(self):
         self.room = Room("test", target_nick="testbot")
+        self.room.register_event("join", self.on_join)
+        self.room.register_event("part", self.on_part)
+        self.room.register_event("send", self.on_send)
+
         self.stop = asyncio.Event()
 
     async def run(self):
         await self.room.connect()
         await self.stop.wait()
+
+    async def on_join(self, user):
+        print()
+        print(f"{user.nick} ({user.atmention}) joined.")
+        if user.is_person:
+            print("They're a person!")
+        elif user.is_bot:
+            print("They're just a bot")
+        else:
+            print("This should never happen")
+        print()
+
+    async def on_part(self, user):
+        print(f"{user.nick} left")
+
+    async def on_send(self, message):
+        await message.reply(f"You said {message.content!r}.")
+        msg1 = await message.room.send(f"{message.sender.atmention} said something.")
+        await msg1.reply("Yes, they really did.")
 
 async def main():
     tc = TestClient()
