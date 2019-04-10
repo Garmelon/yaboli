@@ -9,6 +9,7 @@ from .events import Events
 from .exceptions import *
 from .message import LiveMessage
 from .session import Account, LiveSession, LiveSessionListing
+from .util import atmention
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +239,7 @@ class Room:
         session = LiveSession.from_data(self, data)
         self._users = self.users.with_join(session)
 
+        logger.info(f"{session.atmention} joined")
         self._events.fire("join", session)
 
     async def _on_login_event(self, packet: Any) -> None:
@@ -258,6 +260,7 @@ class Room:
             for user in self.users:
                 if user.server_id == server_id and user.server_era == server_era:
                     users = users.with_part(user)
+                    logger.info(f"{user.atmention} left")
                     self._events.fire("part", user)
 
             self._users = users
@@ -274,6 +277,7 @@ class Room:
         else:
             await self.who() # recalibrating self._users
 
+        logger.info(f"{atmention(nick_from)} is now called {atmention(nick_to)}")
         self._events.fire("nick", session, nick_from, nick_to)
 
     async def _on_edit_message_event(self, packet: Any) -> None:
@@ -289,6 +293,7 @@ class Room:
         session = LiveSession.from_data(self, data)
         self._users = self.users.with_part(session)
 
+        logger.info(f"{session.atmention} left")
         self._events.fire("part", session)
 
     async def _on_pm_initiate_event(self, packet: Any) -> None:

@@ -6,7 +6,11 @@ import logging
 
 import yaboli
 
-FORMAT = "{asctime} [{levelname:<7}] <{name}> {funcName}(): {message}"
+#FORMAT = "{asctime} [{levelname:<7}] <{name}> {funcName}(): {message}"
+#LEVEL = logging.DEBUG
+FORMAT = "{asctime} [{levelname:<7}] <{name}>: {message}"
+LEVEL = logging.INFO
+
 DATE_FORMAT = "%F %T"
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter(
@@ -16,7 +20,7 @@ handler.setFormatter(logging.Formatter(
 ))
 
 logger = logging.getLogger('yaboli')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(LEVEL)
 logger.addHandler(handler)
 
 class TestClient(yaboli.Client):
