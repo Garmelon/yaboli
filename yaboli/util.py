@@ -1,15 +1,15 @@
-__all__ = ["mention", "atmention", "normalize", "compare"]
+import re
+
+__all__ = ["mention", "normalize", "similar"]
 
 # Name/nick related functions
 
-def mention(name: str) -> str:
-    pass
+def mention(nick: str, ping: bool = False) -> str:
+    mentioned = re.sub(r"""[,.!?;&<'"\s]""", "", nick)
+    return "@" + mentioned if ping else mentioned
 
-def atmention(name: str) -> str:
-    pass
+def normalize(nick: str) -> str:
+    return mention(nick, ping=False).lower()
 
-def normalize(name: str) -> str:
-    pass
-
-def compare(name_a: str, name_b: str) -> bool:
-    pass
+def similar(nick_a: str, nick_b: str) -> bool:
+    return normalize(nick_a) == normalize(nick_b)
