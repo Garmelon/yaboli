@@ -460,11 +460,13 @@ class Room:
         reply = await self._connection.send("who", {})
         data = self._extract_data(reply)
 
-        own_id = self._session.session_id if self._session is not None else None
-        self._users = LiveSessionListing.from_data(
-                self,
-                data["listing"],
-                exclude_id = own_id
-        )
+        users = LiveSessionListing.from_data(self, data["listing"])
+        # Assumes that self._session is set (we're connected)
+        session = users.get(self.session.session_id)
+        if session is not None:
+            self._session = session
+            self._users = users.with_part(self._session)
+        else:
+            self._users = users
 
         return self._users
