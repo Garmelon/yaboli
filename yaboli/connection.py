@@ -449,11 +449,12 @@ class Connection:
         self._events.fire(packet_type, packet)
 
         # Finally, reset the ping check
-        logger.debug("Resetting ping check")
-        if self._ping_check is not None:
-            self._ping_check.cancel()
-        self._ping_check = asyncio.create_task(
-                self._disconnect_in(self.PING_TIMEOUT))
+        if packet_type == "ping-event":
+            logger.debug("Resetting ping check")
+            if self._ping_check is not None:
+                self._ping_check.cancel()
+            self._ping_check = asyncio.create_task(
+                    self._disconnect_in(self.PING_TIMEOUT))
 
     async def _do_if_possible(self, coroutine: Awaitable[None]) -> None:
         """
