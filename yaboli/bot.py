@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from .client import Client
 from .command import *
-from .message import LiveMessage
+from .message import LiveMessage, Message
 from .room import Room
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ __all__ = ["Bot"]
 class Bot(Client):
     PING_REPLY: str = "Pong!"
     HELP_GENERAL: Optional[str] = None
-    HELP_SPECIFIC: Optional[str] = None
+    HELP_SPECIFIC: Optional[List[str]] = None
 
     def __init__(self) -> None:
         super().__init__()
@@ -49,9 +49,6 @@ class Bot(Client):
             aliases: List[str] = []
             ) -> None:
         nicks = [room.session.nick] + aliases
-        print()
-        print(nicks)
-        print()
         data = CommandData.from_string(message.content)
 
         if data is not None:
@@ -61,6 +58,17 @@ class Bot(Client):
 
     async def on_send(self, room: Room, message: LiveMessage) -> None:
         await self.process_commands(room, message)
+
+    # Help util
+
+    def format_help(self, room: Room, lines: List[str]) -> str:
+        text = "\n".join(lines)
+        params = {
+                "nick": room.session.nick,
+                "mention": room.session.mention,
+                "atmention": room.session.atmention,
+        }
+        return text.format(**params)
 
     # Botrulez
 
@@ -92,7 +100,7 @@ class Bot(Client):
             args: ArgumentData
             ) -> None:
         if self.HELP_GENERAL is not None:
-            await message.reply(self.HELP_GENERAL)
+            await message.reply(self.format_help(room, [self.HELP_GENERAL]))
 
     async def cmd_help_specific(self,
             room: Room,
@@ -100,4 +108,4 @@ class Bot(Client):
             args: SpecificArgumentData
             ) -> None:
         if self.HELP_SPECIFIC is not None:
-            await message.reply(self.HELP_SPECIFIC)
+            await message.reply(self.format_help(room, self.HELP_SPECIFIC))
