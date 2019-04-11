@@ -1,5 +1,6 @@
 from typing import List
 
+from .bot import *
 from .client import *
 from .command import *
 from .connection import *
@@ -11,6 +12,7 @@ from .session import *
 from .util import *
 
 __all__: List[str] = []
+__all__ += bot.__all__
 __all__ += client.__all__
 __all__ += command.__all__
 __all__ += connection.__all__
