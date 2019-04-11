@@ -38,6 +38,20 @@ class ArgumentData:
         self._fancy_escaped: Optional[FancyArgs] = None
 
     def _split_escaped(self, text: str) -> List[str]:
+        """
+        Splits the string into individual arguments, while allowing
+        bash-inspired quoting/escaping.
+
+        A single backslash escapes the immediately following character.
+
+        Double quotes allow backslash escapes, but escape all other characters.
+
+        Single quotes escape all characters.
+
+        The remaining string is split at all unescaped while space characters
+        (using str.isspace), similar to str.split without any arguments.
+        """
+
         words: List[str] = []
         word: List[str] = []
 
@@ -49,10 +63,16 @@ class ArgumentData:
                 backslash = False
                 word.append(char)
             elif quotes is not None:
-                if char == quotes:
+                if quotes == "\"" and char == "\\":
+                    backslash = True
+                elif char == quotes:
                     quotes = None
                 else:
                     word.append(char)
+            elif char == "\\":
+                backslash = True
+            elif char in ["\"", "'"]:
+                quotes = char
             elif char.isspace():
                 if word:
                     words.append("".join(word))
