@@ -1,0 +1,12 @@
+TODO
+- config file support for bots, used by default
+- package in a distutils-compatible way (users should be able to install yaboli
+  using "pip install git+https://github.com/Garmelon/yaboli")
+- cookie support
+- fancy argument parsing
+- document new classes (docstrings, maybe comments)
+- document yaboli (markdown files in a "docs" folder?)
+- write project readme
+- write examples
+
+DONE

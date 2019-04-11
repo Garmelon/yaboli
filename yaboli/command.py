@@ -94,7 +94,7 @@ class ArgumentData:
             return text.split()
 
     def _parse_fancy(self, args: List[str]) -> FancyArgs:
-        raise NotImplementedError
+        raise NotImplementedError # TODO
 
     @property
     def argstr(self) -> str:

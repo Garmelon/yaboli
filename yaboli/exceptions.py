@@ -10,7 +10,6 @@ __all__ = [
         # Doing stuff in a room
         "RoomNotConnectedException",
         "EuphError",
-        "RoomClosedException",
 ]
 
 class EuphException(Exception):
@@ -64,16 +63,5 @@ class RoomNotConnectedException(EuphException):
 class EuphError(EuphException):
     """
     The euphoria server has sent back an "error" field in its response.
-    """
-    pass
-
-# TODO This exception is not used currently, decide on whether to keep it or
-# throw it away
-class RoomClosedException(EuphException):
-    """
-    The room has been closed already.
-
-    This means that phase 4 (see the docstring of Room) has been initiated or
-    completed.
     """
     pass
