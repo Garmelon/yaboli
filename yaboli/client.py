@@ -123,7 +123,7 @@ class Client:
             ) -> None:
         pass
 
-    async def on_edit(self, message: LiveMessage) -> None:
+    async def on_edit(self, room: Room, message: LiveMessage) -> None:
         pass
 
     async def on_pm(self,
