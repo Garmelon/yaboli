@@ -23,39 +23,44 @@ logger = logging.getLogger('yaboli')
 logger.setLevel(LEVEL)
 logger.addHandler(handler)
 
-class TestBot(yaboli.Bot):
-    DEFAULT_NICK = "testbot"
+class TestModule(yaboli.Module):
+    PING_REPLY = "ModulePong!"
+    DESCRIPTION = "ModuleDescription"
+    HELP_GENERAL = "ModuleGeneralHelp"
+    HELP_SPECIFIC = ["ModuleGeneralHelp"]
 
-    def __init__(self):
-        super().__init__()
-        self.register_botrulez()
-        self.register_general("test", self.cmd_test, args=False)
-        self.register_general("who", self.cmd_who, args=False)
-        self.register_general("err", self.cmd_err, args=False)
+class EchoModule(yaboli.Module):
+    DEFAULT_NICK = "echo"
+    DESCRIPTION = "echoes back the input arguments"
+    HELP_GENERAL = "/me " + DESCRIPTION
+    HELP_SPECIFIC = [
+            "!echo <args> – output the arguments, each in its own line"
+            #"!fancyecho <args> – same as !echo, but different parser"
+    ]
+
+    def __init__(self, standalone: bool) -> None:
+        super().__init__(standalone)
+
+        self.register_general("echo", self.cmd_echo)
+        #self.register_general("fancyecho", self.cmd_fancyecho)
+
+    async def cmd_echo(self, room, message, args):
+        if args.has_args():
+            lines = [repr(arg) for arg in args.basic()]
+            await message.reply("\n".join(lines))
+        else:
+            await message.reply("No arguments")
+
+class TestBot(yaboli.ModuleBot):
+    DEFAULT_NICK = "testbot"
 
     async def started(self):
         await self.join("test")
 
-    async def on_send(self, room, message):
-        await self.process_commands(room, message,
-                aliases=["testalias", "aliastest"])
-
-    async def cmd_test(self, room, message, args):
-        await message.reply(f"You said {message.content!r}.")
-        msg1 = await room.send(f"{message.sender.atmention} said something.")
-        await msg1.reply("Yes, they really did.")
-
-    async def cmd_who(self, room, message, args):
-        lines = []
-        for user in await room.who():
-            lines.append(repr(user.nick))
-        await message.reply("\n".join(lines))
-
-    async def cmd_err(self, room, message, args):
-        await message.reply(str(1/0))
-
 async def main():
-    tc = TestBot()
-    await tc.run()
+    tb = TestBot()
+    tb.register_module("test", TestModule(standalone=False))
+    tb.register_module("echo", EchoModule(standalone=False))
+    await tb.run()
 
 asyncio.run(main())

@@ -1,6 +1,6 @@
 import re
 
-__all__ = ["mention", "atmention", "normalize", "similar"]
+__all__ = ["mention", "atmention", "normalize", "similar", "plural"]
 
 # Name/nick related functions
 
@@ -16,3 +16,15 @@ def normalize(nick: str) -> str:
 
 def similar(nick_a: str, nick_b: str) -> bool:
     return normalize(nick_a) == normalize(nick_b)
+
+# Other formatting
+
+def plural(
+        number: int,
+        if_plural: str = "s",
+        if_singular: str = ""
+        ) -> str:
+    if number in [1, -1]:
+        return if_singular
+    else:
+        return if_plural
