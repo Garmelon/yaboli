@@ -102,6 +102,9 @@ class ArgumentData:
                 self._fancy = self._parse_fancy(basic)
             return self._fancy
 
+    def has_args(self) -> bool:
+        return bool(self.basic()) # The list of arguments is empty
+
 class SpecificArgumentData(ArgumentData):
     def __init__(self, nick: str, argstr: str) -> None:
         super().__init__(argstr)
@@ -224,7 +227,7 @@ class GeneralCommand(Command):
             data: CommandData,
             ) -> None:
         # Do we have arguments if we shouldn't?
-        if not self._args and data.general.basic():
+        if not self._args and data.general.has_args():
             return
 
         await self._cmdfunc(room, message, data.general)
@@ -263,7 +266,7 @@ class SpecificCommand(Command):
             return # Yay, a rare occurrence of this structure!
 
         # Do we have arguments if we shouldn't?
-        if not self._args and data.specific.basic():
+        if not self._args and data.specific.has_args():
             return
 
         await self._cmdfunc(room, message, data.specific)
