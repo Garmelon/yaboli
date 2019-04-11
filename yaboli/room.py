@@ -420,6 +420,9 @@ class Room:
         new_nick = data["to"]
         self._target_nick = new_nick
 
+        if self._session is not None:
+            self._session = self._session.with_nick(new_nick)
+
         logger.debug(f"Set nick to {new_nick!r}")
 
         return new_nick
