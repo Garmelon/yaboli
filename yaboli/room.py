@@ -1,5 +1,3 @@
-# TODO add more logging
-
 import asyncio
 import logging
 from typing import Any, Awaitable, Callable, List, Optional, TypeVar

@@ -1,7 +1,7 @@
 import asyncio
 import functools
-from typing import Dict, List, Optional
 import logging
+from typing import Dict, List, Optional
 
 from .message import LiveMessage
 from .room import Room
