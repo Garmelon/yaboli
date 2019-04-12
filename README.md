@@ -18,7 +18,7 @@ In your project directory, run:
 ```
 $ python -m venv .
 $ . bin/activate
-$ pip install git+https://github.com/Garmelon/yaboli@v0.1.0
+$ pip install git+https://github.com/Garmelon/yaboli@v0.2.0
 ```
 
 ## Example echo bot
