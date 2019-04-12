@@ -438,10 +438,11 @@ class Connection:
         # to http://api.euphoria.io/#packets.
 
         # First, notify whoever's waiting for this packet
-        packet_id = packet.get("id", None)
+        packet_id = packet.get("id")
         if packet_id is not None and self._awaiting_replies is not None:
-            future = self._awaiting_replies.get(packet_id, None)
+            future = self._awaiting_replies.get(packet_id)
             if future is not None:
+                del self._awaiting_replies[packet_id]
                 future.set_result(packet)
 
         # Then, send the corresponding event

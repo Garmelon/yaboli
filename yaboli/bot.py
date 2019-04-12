@@ -16,6 +16,7 @@ class Bot(Client):
     PING_REPLY: str = "Pong!"
     HELP_GENERAL: Optional[str] = None
     HELP_SPECIFIC: Optional[List[str]] = None
+    KILL_REPLY: str = "/me dies"
 
     def __init__(self) -> None:
         super().__init__()
@@ -79,7 +80,8 @@ class Bot(Client):
     def register_botrulez(self,
             ping: bool = True,
             help_: bool = True,
-            uptime: bool = True
+            uptime: bool = True,
+            kill: bool = False,
             ) -> None:
         if ping:
             self.register_general("ping", self.cmd_ping, args=False)
@@ -94,6 +96,9 @@ class Bot(Client):
 
         if uptime:
             self.register_specific("uptime", self.cmd_uptime, args=False)
+
+        if kill:
+            self.register_specific("kill", self.cmd_kill, args=False)
 
     async def cmd_ping(self,
             room: Room,
@@ -127,3 +132,11 @@ class Bot(Client):
         delta = format_delta(datetime.datetime.now() - self.start_time)
         text = f"/me has been up since {time} UTC ({delta})"
         await message.reply(text)
+
+    async def cmd_kill(self,
+            room: Room,
+            message: LiveMessage,
+            args: SpecificArgumentData
+            ) -> None:
+        await message.reply(self.KILL_REPLY)
+        await self.part(room)

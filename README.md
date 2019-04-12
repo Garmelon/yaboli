@@ -49,7 +49,6 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 
 ## TODOs
 
-- [ ] implement !kill
 - [ ] implement !restart and add an easier way to run bots
 - [ ] untruncate LiveMessage-s
 - [ ] config file support for bots, used by default
@@ -63,3 +62,4 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [ ] write project readme
 - [ ] write examples
 - [x] implement !uptime for proper botrulez conformity
+- [x] implement !kill
