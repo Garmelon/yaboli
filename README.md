@@ -21,7 +21,7 @@ class EchoBot(yaboli.Bot):
 
     def __init__(self, config_file):
         super().__init__(config_file)
-        self.register_botrulez()
+        self.register_botrulez(kill=True)
         self.register_general("echo", self.cmd_echo)
 
     async def cmd_echo(self, room, message, args):
@@ -33,7 +33,9 @@ The bot's nick and default rooms are specified in a config file.
 The help command from the botrulez uses the `HELP_GENERAL` and `HELP_SPECIFIC`
 fields.
 
-In the `__init__` function, the bot's commands are registered.
+In the `__init__` function, the bot's commands are registered. The required
+botrulez commands (!ping, !help, !uptime) are enabled by default. Other
+commands like !kill need to be enabled explicitly.
 
 In the `cmd_echo` function, the echo command is implemented. In this case, the
 bot replies to the message containing the command with the raw argument string,
@@ -41,11 +43,10 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 
 ## TODOs
 
-- [ ] implement !restart and add an easier way to run bots
+- [ ] implement !restart
 - [ ] package in a distutils-compatible way (users should be able to install
   yaboli using `pip install git+https://github.com/Garmelon/yaboli`)
 - [ ] document yaboli (markdown files in a "docs" folder?)
-- [ ] make it easier to enable log messages
 - [ ] cookie support
 - [ ] fancy argument parsing
 - [ ] document new classes (docstrings, maybe comments)
@@ -55,3 +56,5 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [x] implement !kill
 - [x] untruncate LiveMessage-s
 - [x] config file support for bots, used by default
+- [x] make it easier to enable log messages
+- [x] make it easier to run bots

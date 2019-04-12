@@ -152,5 +152,6 @@ class Bot(Client):
             message: LiveMessage,
             args: SpecificArgumentData
             ) -> None:
+        logger.info(f"Killed in &{room.name} by {message.sender.atmention}")
         await message.reply(self.KILL_REPLY)
         await self.part(room)
