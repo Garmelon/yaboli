@@ -28,8 +28,8 @@ class FancyArgs(NamedTuple):
     flags: Dict[str, int]
 
 class ArgumentData:
-    def __init__(self, argstr: str) -> None:
-        self._argstr = argstr
+    def __init__(self, raw: str) -> None:
+        self._raw = raw
 
         self._basic: Optional[List[str]] = None
         self._basic_escaped: Optional[List[str]] = None
@@ -97,28 +97,28 @@ class ArgumentData:
         raise NotImplementedError # TODO
 
     @property
-    def argstr(self) -> str:
-        return self._argstr
+    def raw(self) -> str:
+        return self._raw
 
     def basic(self, escaped: bool = True) -> List[str]:
         if escaped:
             if self._basic_escaped is None:
-                self._basic_escaped = self._split(self._argstr, escaped)
+                self._basic_escaped = self._split(self._raw, escaped)
             return self._basic_escaped
         else:
             if self._basic is None:
-                self._basic = self._split(self._argstr, escaped)
+                self._basic = self._split(self._raw, escaped)
             return self._basic
 
     def fancy(self, escaped: bool = True) -> FancyArgs:
         if escaped:
             if self._fancy_escaped is None:
-                basic = self._split(self._argstr, escaped)
+                basic = self._split(self._raw, escaped)
                 self._fancy_escaped = self._parse_fancy(basic)
             return self._fancy_escaped
         else:
             if self._fancy is None:
-                basic = self._split(self._argstr, escaped)
+                basic = self._split(self._raw, escaped)
                 self._fancy = self._parse_fancy(basic)
             return self._fancy
 
@@ -126,8 +126,8 @@ class ArgumentData:
         return bool(self.basic()) # The list of arguments is empty
 
 class SpecificArgumentData(ArgumentData):
-    def __init__(self, nick: str, argstr: str) -> None:
-        super().__init__(argstr)
+    def __init__(self, nick: str, raw: str) -> None:
+        super().__init__(raw)
 
         self._nick = nick
 
