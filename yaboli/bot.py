@@ -21,14 +21,18 @@ class Bot(Client):
     HELP_SPECIFIC: Optional[List[str]] = None
     KILL_REPLY: str = "/me dies"
 
-    BASIC_SECTION = "basic"
+    GENERAL_SECTION = "general"
     ROOMS_SECTION = "rooms"
 
     def __init__(self, config_file: str) -> None:
         self.config = configparser.ConfigParser(allow_no_value=True)
         self.config.read(config_file)
 
-        super().__init__(self.config[self.BASIC_SECTION].get("name", ""))
+        nick = self.config[self.GENERAL_SECTION].get("nick")
+        if nick is None:
+            logger.warn("No nick set in config file. Defaulting to empty nick")
+            nick = ""
+        super().__init__(nick)
 
         self._commands: List[Command] = []
 

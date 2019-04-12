@@ -2,6 +2,7 @@
 
 ## Next version
 
+- change config file format
 - add `ALIASES` variable to `Bot`
 - add `on_connected` function to `Client`
 
