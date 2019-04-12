@@ -6,3 +6,7 @@ setup(
         packages=["yaboli"],
         install_requires=["websockets==7.0"],
 )
+
+# When updating the version, also:
+# - set a tag to the update commit
+# - update the changelog
