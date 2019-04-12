@@ -65,6 +65,7 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [ ] document new classes (docstrings, maybe comments)
 - [ ] write project readme
 - [ ] write examples
+- [ ] make yaboli package play nice with mypy
 - [x] implement !uptime for proper botrulez conformity
 - [x] implement !kill
 - [x] untruncate LiveMessage-s

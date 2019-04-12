@@ -51,7 +51,7 @@ def run(
         client: Callable[[str], Client],
         config_file: str = "bot.conf"
         ) -> None:
-    async def _run():
+    async def _run() -> None:
         client_ = client(config_file)
         await client_.run()
 
