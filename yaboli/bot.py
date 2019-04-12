@@ -1,3 +1,4 @@
+import datetime
 import logging
 from typing import List, Optional
 
@@ -5,6 +6,7 @@ from .client import Client
 from .command import *
 from .message import LiveMessage, Message
 from .room import Room
+from .util import *
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,8 @@ class Bot(Client):
         super().__init__()
 
         self._commands: List[Command] = []
+
+        self.start_time = datetime.datetime.now()
 
     # Registering commands
 
@@ -74,7 +78,8 @@ class Bot(Client):
 
     def register_botrulez(self,
             ping: bool = True,
-            help_: bool = True
+            help_: bool = True,
+            uptime: bool = True
             ) -> None:
         if ping:
             self.register_general("ping", self.cmd_ping, args=False)
@@ -86,6 +91,9 @@ class Bot(Client):
                     " help command is enabled"))
             self.register_general("help", self.cmd_help_general, args=False)
             self.register_specific("help", self.cmd_help_specific, args=False)
+
+        if uptime:
+            self.register_specific("uptime", self.cmd_uptime, args=False)
 
     async def cmd_ping(self,
             room: Room,
@@ -109,3 +117,13 @@ class Bot(Client):
             ) -> None:
         if self.HELP_SPECIFIC is not None:
             await message.reply(self.format_help(room, self.HELP_SPECIFIC))
+
+    async def cmd_uptime(self,
+            room: Room,
+            message: LiveMessage,
+            args: SpecificArgumentData
+            ) -> None:
+        time = format_time(self.start_time)
+        delta = format_delta(datetime.datetime.now() - self.start_time)
+        text = f"/me has been up since {time} UTC ({delta})"
+        await message.reply(text)
