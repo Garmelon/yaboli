@@ -12,9 +12,8 @@ logger = logging.getLogger(__name__)
 __all__ = ["Client"]
 
 class Client:
-    DEFAULT_NICK = ""
-
-    def __init__(self) -> None:
+    def __init__(self, default_nick: str) -> None:
+        self._default_nick = default_nick
         self._rooms: Dict[str, List[Room]] = {}
         self._stop = asyncio.Event()
 
@@ -54,7 +53,7 @@ class Client:
         logger.info(f"Joining &{room_name}")
 
         if nick is None:
-            nick = self.DEFAULT_NICK
+            nick = self._default_nick
         room = Room(room_name, password=password, target_nick=nick)
 
         room.register_event("snapshot",

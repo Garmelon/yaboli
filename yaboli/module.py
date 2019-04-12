@@ -15,8 +15,8 @@ __all__ = ["Module", "ModuleBot"]
 class Module(Bot):
     DESCRIPTION: Optional[str] = None
 
-    def __init__(self, standalone: bool) -> None:
-        super().__init__()
+    def __init__(self, config_file: str, standalone: bool) -> None:
+        super().__init__(config_file)
 
         self.standalone = standalone
 
@@ -31,8 +31,8 @@ class ModuleBot(Bot):
     ]
     MODULE_HELP_LIMIT = 5
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
 
         self.modules: Dict[str, Module] = {}
 

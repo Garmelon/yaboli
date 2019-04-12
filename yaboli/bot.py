@@ -1,3 +1,4 @@
+import configparser
 import datetime
 import logging
 from typing import List, Optional
@@ -18,12 +19,25 @@ class Bot(Client):
     HELP_SPECIFIC: Optional[List[str]] = None
     KILL_REPLY: str = "/me dies"
 
-    def __init__(self) -> None:
-        super().__init__()
+    BASIC_SECTION = "basic"
+    ROOMS_SECTION = "rooms"
+
+    def __init__(self, config_file: str) -> None:
+        self.config = configparser.ConfigParser(allow_no_value=True)
+        self.config.read(config_file)
+
+        super().__init__(self.config[self.BASIC_SECTION].get("name", ""))
 
         self._commands: List[Command] = []
 
         self.start_time = datetime.datetime.now()
+
+    async def started(self) -> None:
+        for room, password in self.config[self.ROOMS_SECTION].items():
+            if password is None:
+                await self.join(room)
+            else:
+                await self.join(room, password=password)
 
     # Registering commands
 
