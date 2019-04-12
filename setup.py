@@ -8,5 +8,6 @@ setup(
 )
 
 # When updating the version, also:
-# - set a tag to the update commit
+# - update the README.md installation instructions
 # - update the changelog
+# - set a tag to the update commit
