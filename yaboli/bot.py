@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 __all__ = ["Bot"]
 
 class Bot(Client):
+    ALIASES: List[str] = []
+
     PING_REPLY: str = "Pong!"
     HELP_GENERAL: Optional[str] = None
     HELP_SPECIFIC: Optional[List[str]] = None
@@ -76,7 +78,7 @@ class Bot(Client):
                 await command.run(room, message, nicks, data)
 
     async def on_send(self, room: Room, message: LiveMessage) -> None:
-        await self.process_commands(room, message)
+        await self.process_commands(room, message, aliases=self.ALIASES)
 
     # Help util
 
