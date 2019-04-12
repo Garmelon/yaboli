@@ -166,5 +166,8 @@ class LiveMessage(Message):
     async def reply(self, content: str) -> "LiveMessage":
         return await self.room.send(content, parent_id=self.message_id)
 
+    async def get(self) -> "LiveMessage":
+        return await self.room.get(self.message_id)
+
     async def before(self, amount: int) -> List["LiveMessage"]:
         return await self.room.log(amount, before_id=self.message_id)

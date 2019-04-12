@@ -50,7 +50,6 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 ## TODOs
 
 - [ ] implement !restart and add an easier way to run bots
-- [ ] untruncate LiveMessage-s
 - [ ] config file support for bots, used by default
 - [ ] package in a distutils-compatible way (users should be able to install
   yaboli using `pip install git+https://github.com/Garmelon/yaboli`)
@@ -63,3 +62,4 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [ ] write examples
 - [x] implement !uptime for proper botrulez conformity
 - [x] implement !kill
+- [x] untruncate LiveMessage-s
