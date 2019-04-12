@@ -20,6 +20,7 @@ class Bot(Client):
     HELP_GENERAL: Optional[str] = None
     HELP_SPECIFIC: Optional[List[str]] = None
     KILL_REPLY: str = "/me dies"
+    RESTART_REPLY: str = "/me restarts"
 
     GENERAL_SECTION = "general"
     ROOMS_SECTION = "rooms"
@@ -102,6 +103,7 @@ class Bot(Client):
             help_: bool = True,
             uptime: bool = True,
             kill: bool = False,
+            restart: bool = False,
             ) -> None:
         if ping:
             self.register_general("ping", self.cmd_ping, args=False)
@@ -119,6 +121,9 @@ class Bot(Client):
 
         if kill:
             self.register_specific("kill", self.cmd_kill, args=False)
+
+        if restart:
+            self.register_specific("restart", self.cmd_restart, args=False)
 
     async def cmd_ping(self,
             room: Room,
@@ -161,3 +166,12 @@ class Bot(Client):
         logger.info(f"Killed in &{room.name} by {message.sender.atmention}")
         await message.reply(self.KILL_REPLY)
         await self.part(room)
+
+    async def cmd_restart(self,
+            room: Room,
+            message: LiveMessage,
+            args: SpecificArgumentData
+            ) -> None:
+        logger.info(f"Restarted in &{room.name} by {message.sender.atmention}")
+        await message.reply(self.RESTART_REPLY)
+        await self.stop()

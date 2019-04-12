@@ -58,7 +58,6 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 
 ## TODOs
 
-- [ ] implement !restart
 - [ ] document yaboli (markdown files in a "docs" folder?)
 - [ ] cookie support
 - [ ] fancy argument parsing
@@ -74,3 +73,4 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [x] make it easier to run bots
 - [x] package in a distutils-compatible way (users should be able to install
   yaboli using `pip install git+https://github.com/Garmelon/yaboli`)
+- [x] implement !restart

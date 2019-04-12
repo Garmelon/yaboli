@@ -52,7 +52,8 @@ def run(
         config_file: str = "bot.conf"
         ) -> None:
     async def _run() -> None:
-        client_ = client(config_file)
-        await client_.run()
+        while True:
+            client_ = client(config_file)
+            await client_.run()
 
     asyncio.run(_run())

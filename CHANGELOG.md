@@ -2,6 +2,8 @@
 
 ## Next version
 
+- add !restart to botrulez
+
 ## 0.2.0 (2019-04-12)
 
 - change config file format
