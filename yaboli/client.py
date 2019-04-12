@@ -56,6 +56,8 @@ class Client:
             nick = self._default_nick
         room = Room(room_name, password=password, target_nick=nick)
 
+        room.register_event("connected",
+                functools.partial(self.on_connected, room))
         room.register_event("snapshot",
                 functools.partial(self.on_snapshot, room))
         room.register_event("send",
@@ -101,6 +103,9 @@ class Client:
         pass
 
     # Event stuff - overwrite these functions
+
+    async def on_connected(self, room: Room) -> None:
+        pass
 
     async def on_snapshot(self, room: Room, messages: List[LiveMessage]) -> None:
         pass

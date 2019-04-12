@@ -19,6 +19,10 @@ class Room:
     """
     Events and parameters:
 
+    "connected" - fired after the Room has authenticated, joined and set its
+    nick, meaning that now, messages can be sent
+        no parameters
+
     "snapshot" - snapshot of the room's messages at the time of joining
         messages: List[LiveMessage]
 
@@ -207,6 +211,7 @@ class Room:
         if self._target_nick and nick_needs_updating:
             await self._nick(self._target_nick)
 
+        self._events.fire("connected")
         return True
 
     async def disconnect(self) -> None:
