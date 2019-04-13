@@ -2,6 +2,8 @@
 
 ## Next version
 
+# 1.0.0 (2019-04-13)
+
 - add fancy argument parsing
 - add login and logout command to room
 - add pm command to room

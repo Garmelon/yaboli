@@ -11,7 +11,7 @@ creating bots for [euphoria.io](https://euphoria.io).
 Ensure that you have at least Python 3.7 installed.
 
 ```
-$ pip install git+https://github.com/Garmelon/yaboli@v0.2.0
+$ pip install git+https://github.com/Garmelon/yaboli@v1.0.0
 ```
 
 The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
