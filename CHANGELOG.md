@@ -2,6 +2,7 @@
 
 ## Next version
 
+- add cookie support
 - add !restart to botrulez
 - save (overwrite) `Bot` config file
 

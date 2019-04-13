@@ -33,9 +33,16 @@ class Bot(Client):
 
         nick = self.config[self.GENERAL_SECTION].get("nick")
         if nick is None:
-            logger.warn("No nick set in config file. Defaulting to empty nick")
+            logger.warn(("'nick' not set in config file. Defaulting to empty"
+                    " nick"))
             nick = ""
-        super().__init__(nick)
+
+        cookie_file = self.config[self.GENERAL_SECTION].get("cookie_file")
+        if cookie_file is None:
+            logger.warn(("'cookie_file' not set in config file. Using no cookie"
+                    " file."))
+
+        super().__init__(nick, cookie_file=cookie_file)
 
         self._commands: List[Command] = []
 

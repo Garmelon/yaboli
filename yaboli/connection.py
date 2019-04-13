@@ -6,6 +6,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 
 import websockets
 
+from .cookiejar import CookieJar
 from .events import Events
 from .exceptions import *
 
@@ -97,8 +98,9 @@ class Connection:
 
     # Initialising
 
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, cookie_file: Optional[str] = None) -> None:
         self._url = url
+        self._cookie_jar = CookieJar(cookie_file)
 
         self._events = Events()
         self._packet_id = 0
@@ -181,13 +183,19 @@ class Connection:
 
         try:
             logger.debug(f"Creating ws connection to {self._url!r}")
-            ws = await websockets.connect(self._url)
+            ws = await websockets.connect(self._url,
+                    extra_headers=self._cookie_jar.get_cookies_as_headers())
 
             self._ws = ws
             self._awaiting_replies = {}
             logger.debug("Starting ping check")
             self._ping_check = asyncio.create_task(
                     self._disconnect_in(self.PING_TIMEOUT))
+
+            # Put received cookies into cookie jar
+            for set_cookie in ws.response_headers.get_all("Set-Cookie"):
+                self._cookie_jar.add_cookie(set_cookie)
+            self._cookie_jar.save()
 
             return True
 

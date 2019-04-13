@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from .message import LiveMessage
 from .room import Room
@@ -12,8 +12,12 @@ logger = logging.getLogger(__name__)
 __all__ = ["Client"]
 
 class Client:
-    def __init__(self, default_nick: str) -> None:
+    def __init__(self,
+            default_nick: str,
+            cookie_file: Optional[str] = None,
+            ) -> None:
         self._default_nick = default_nick
+        self._cookie_file = cookie_file
         self._rooms: Dict[str, List[Room]] = {}
         self._stop = asyncio.Event()
 
@@ -48,13 +52,31 @@ class Client:
     async def join(self,
             room_name: str,
             password: Optional[str] = None,
-            nick: Optional[str] = None
+            nick: Optional[str] = None,
+            cookie_file: Union[str, bool] = True,
             ) -> Optional[Room]:
+        """
+        cookie_file is the name of the file to store the cookies in. If it is
+        True, the client default is used. If it is False, no cookie file name
+        will be used.
+        """
+
         logger.info(f"Joining &{room_name}")
 
         if nick is None:
             nick = self._default_nick
-        room = Room(room_name, password=password, target_nick=nick)
+
+        this_cookie_file: Optional[str]
+
+        if isinstance(cookie_file, str): # This way, mypy doesn't complain
+            this_cookie_file = cookie_file
+        elif cookie_file:
+            this_cookie_file = self._cookie_file
+        else:
+            this_cookie_file = None
+
+        room = Room(room_name, password=password, target_nick=nick,
+                cookie_file=this_cookie_file)
 
         room.register_event("connected",
                 functools.partial(self.on_connected, room))

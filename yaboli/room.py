@@ -60,7 +60,8 @@ class Room:
             name: str,
             password: Optional[str] = None,
             target_nick: str = "",
-            url_format: str = URL_FORMAT
+            url_format: str = URL_FORMAT,
+            cookie_file: Optional[str] = None,
             ) -> None:
         self._name = name
         self._password = password
@@ -78,7 +79,7 @@ class Room:
 
         # Connected management
         self._url = self._url_format.format(self._name)
-        self._connection = Connection(self._url)
+        self._connection = Connection(self._url, cookie_file=cookie_file)
         self._events = Events()
 
         self._connected = asyncio.Event()

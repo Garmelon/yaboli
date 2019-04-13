@@ -59,7 +59,6 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 ## TODOs
 
 - [ ] document yaboli (markdown files in a "docs" folder?)
-- [ ] cookie support
 - [ ] fancy argument parsing
 - [ ] document new classes (docstrings, maybe comments)
 - [ ] write examples
@@ -74,3 +73,4 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
   yaboli using `pip install git+https://github.com/Garmelon/yaboli`)
 - [x] implement !restart
 - [x] write project readme
+- [x] cookie support
