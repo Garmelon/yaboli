@@ -1,5 +1,6 @@
 import re
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional
+from typing import (TYPE_CHECKING, Any, Dict, Iterable, Iterator, List,
+                    Optional, Tuple)
 
 from .util import mention, normalize
 
@@ -238,7 +239,12 @@ class LiveSession(Session):
 
     # Live stuff
 
-    # TODO pm, once pm support is there.
+    async def pm(self) -> Tuple[str, str]:
+        """
+        See Room.pm
+        """
+
+        return await self.room.pm(self.user_id)
 
 class LiveSessionListing:
     def __init__(self, room: "Room", sessions: Iterable[LiveSession]) -> None:

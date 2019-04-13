@@ -152,6 +152,12 @@ class Client:
     async def on_edit(self, room: Room, message: LiveMessage) -> None:
         pass
 
+    async def on_login(self, room: Room, account_id: str) -> None:
+        pass
+
+    async def on_logout(self, room: Room) -> None:
+        pass
+
     async def on_pm(self,
             room: Room,
             from_id: str,

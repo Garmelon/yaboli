@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, List, Optional, TypeVar
+from typing import Any, Awaitable, Callable, List, Optional, Tuple, TypeVar
 
 from .connection import Connection
 from .events import Events
@@ -42,6 +42,12 @@ class Room:
 
     "edit" - a message in the room has been modified or deleted
         message: LiveMessage
+
+    "login" - this session has been logged in from another session
+        account_id: str
+
+    "logout" - this session has been logged out from another session
+        no parameters
 
     "pm" - another session initiated a pm with you
         from: str      - the id of the user inviting the client to chat privately
@@ -117,11 +123,22 @@ class Room:
 
     # Connecting, reconnecting and disconnecting
 
-    def _set_connected(self) -> None:
+    async def _try_set_connected(self) -> None:
         packets_received = self._hello_received and self._snapshot_received
         if packets_received and not self._connected.is_set():
-            self._connected_successfully = True
-            self._connected.set()
+            await self._set_nick_if_necessary()
+            self._set_connected()
+
+    async def _set_nick_if_necessary(self) -> None:
+        nick_needs_updating = (self._session is None
+                or self._target_nick != self._session.nick)
+
+        if self._target_nick and nick_needs_updating:
+            await self._nick(self._target_nick)
+
+    def _set_connected(self) -> None:
+        self._connected_successfully = True
+        self._connected.set()
 
     def _set_connected_failed(self) -> None:
         if not self._connected.is_set():
@@ -148,7 +165,7 @@ class Room:
             self._account = Account.from_data(data)
 
         self._hello_received = True
-        self._set_connected()
+        await self._try_set_connected()
 
     async def _on_snapshot_event(self, packet: Any) -> None:
         data = packet["data"]
@@ -169,7 +186,7 @@ class Room:
         self._events.fire("session", messages)
 
         self._snapshot_received = True
-        self._set_connected()
+        await self._try_set_connected()
 
     async def _on_bounce_event(self, packet: Any) -> None:
         data = packet["data"]
@@ -207,11 +224,6 @@ class Room:
         if not self._connected_successfully:
             return False
 
-        nick_needs_updating = (self._session is None
-                or self._target_nick != self._session.nick)
-        if self._target_nick and nick_needs_updating:
-            await self._nick(self._target_nick)
-
         self._events.fire("connected")
         return True
 
@@ -243,14 +255,34 @@ class Room:
         session = LiveSession.from_data(self, data)
         self._users = self.users.with_join(session)
 
-        logger.info(f"{session.atmention} joined")
+        logger.info(f"&{self.name}: {session.atmention} joined")
         self._events.fire("join", session)
 
     async def _on_login_event(self, packet: Any) -> None:
-        pass # TODO implement once cookie support is here
+        """
+        Just reconnect, see
+        https://github.com/euphoria-io/heim/blob/master/client/lib/stores/chat.js#L275-L276
+        """
+
+        data = packet["data"]
+
+        account_id = data["account_id"]
+
+        self._events.fire("login", account_id)
+        logger.info(f"&{self.name}: Got logged in to {account_id}, reconnecting")
+
+        await self._connection.reconnect()
 
     async def _on_logout_event(self, packet: Any) -> None:
-        pass # TODO implement once cookie support is here
+        """
+        Just reconnect, see
+        https://github.com/euphoria-io/heim/blob/master/client/lib/stores/chat.js#L275-L276
+        """
+
+        self._events.fire("logout")
+        logger.info(f"&{self.name}: Got logged out, reconnecting")
+
+        await self._connection.reconnect()
 
     async def _on_network_event(self, packet: Any) -> None:
         data = packet["data"]
@@ -264,7 +296,7 @@ class Room:
             for user in self.users:
                 if user.server_id == server_id and user.server_era == server_era:
                     users = users.with_part(user)
-                    logger.info(f"{user.atmention} left")
+                    logger.info(f"&{self.name}: {user.atmention} left")
                     self._events.fire("part", user)
 
             self._users = users
@@ -281,7 +313,7 @@ class Room:
         else:
             await self.who() # recalibrating self._users
 
-        logger.info(f"{atmention(nick_from)} is now called {atmention(nick_to)}")
+        logger.info(f"&{self.name}: {atmention(nick_from)} is now called {atmention(nick_to)}")
         self._events.fire("nick", session, nick_from, nick_to)
 
     async def _on_edit_message_event(self, packet: Any) -> None:
@@ -297,7 +329,7 @@ class Room:
         session = LiveSession.from_data(self, data)
         self._users = self.users.with_part(session)
 
-        logger.info(f"{session.atmention} left")
+        logger.info(f"&{self.name}: {session.atmention} left")
         self._events.fire("part", session)
 
     async def _on_pm_initiate_event(self, packet: Any) -> None:
@@ -373,10 +405,6 @@ class Room:
         return self._url
 
     # Functionality
-
-    # These functions require cookie support and are thus not implemented yet:
-    #
-    # login, logout, pm
 
     def _extract_data(self, packet: Any) -> Any:
         error = packet.get("error")
@@ -477,3 +505,55 @@ class Room:
             self._users = users
 
         return self._users
+
+    async def login(self, email: str, password: str) -> Tuple[bool, str]:
+        """
+        Since euphoria appears to only support email authentication, this way
+        of logging in is hardcoded here.
+
+        Returns whether the login was successful. If it was, the second
+        parameter is the account id. If it wasn't, the second parameter is the
+        reason why the login failed.
+        """
+
+        data: Any = {
+                "namespace": "email",
+                "id": email,
+                "password": password,
+        }
+
+        reply = await self._connection.send("login", data)
+        data = self._extract_data(reply)
+
+        success: bool = data["success"]
+        account_id_or_reason = data.get("account_id") or data["reason"]
+
+        if success:
+            logger.info(f"&{self.name}: Logged in as {account_id_or_reason}")
+        else:
+            logger.info(f"&{self.name}: Failed to log in with {email} because {account_id_or_reason}")
+
+        await self._connection.reconnect()
+
+        return success, account_id_or_reason
+
+    async def logout(self) -> None:
+        await self._connection.send("logout", {})
+
+        logger.info(f"&{self.name}: Logged out")
+
+        await self._connection.reconnect()
+
+    async def pm(self, user_id: str) -> Tuple[str, str]:
+        """
+        Returns the pm_id of the pm and the nick of the person being pinged.
+        """
+
+        data = {"user_id": user_id}
+
+        reply = await self._connection.send("pm-initiate", data)
+        data = self._extract_data(reply)
+
+        pm_id = data["pm_id"]
+        to_nick = data["to_nick"]
+        return pm_id, to_nick

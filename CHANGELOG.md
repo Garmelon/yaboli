@@ -2,6 +2,8 @@
 
 ## Next version
 
+- add login and logout command to room
+- add pm command to room
 - add cookie support
 - add !restart to botrulez
 - save (overwrite) `Bot` config file
