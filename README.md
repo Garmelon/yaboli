@@ -4,9 +4,9 @@ Yaboli (**Y**et **A**nother **Bo**t **Li**brary) is a Python library for
 creating bots for [euphoria.io](https://euphoria.io).
 
 - [Changelog](CHANGELOG.md)
+- [Documentation](docs/index.md)
 
-Soon, markdown files containing documentation and troubleshooting info will be
-available.
+Soon, markdown files containing troubleshooting info will be available.
 
 ## Installation
 
@@ -62,7 +62,6 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [ ] cookie support
 - [ ] fancy argument parsing
 - [ ] document new classes (docstrings, maybe comments)
-- [ ] write project readme
 - [ ] write examples
 - [ ] make yaboli package play nice with mypy
 - [x] implement !uptime for proper botrulez conformity
@@ -74,3 +73,4 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [x] package in a distutils-compatible way (users should be able to install
   yaboli using `pip install git+https://github.com/Garmelon/yaboli`)
 - [x] implement !restart
+- [x] write project readme
