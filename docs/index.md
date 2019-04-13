@@ -10,10 +10,9 @@ A `Message` represents a single message. It contains all the fields [specified
 in the API](http://api.euphoria.io/#message), in addition to a few utility
 functions.
 
-Similar to a `Message`, a `Session` represents a session and also contains
-almost all the fields [specified in the
-API](http://api.euphoria.io/#sessionview), in addition to a few utility
-functions.
+Similar to a `Message`, a `Session` represents a [session
+view](http://api.euphoria.io/#sessionview) and also contains almost all the
+fields specified in the API, in addition to a few utility functions.
 
 `Message`s and `Session`s also both contain the name of the room they
 originated from.

@@ -7,7 +7,8 @@
 - add pm command to room
 - add cookie support
 - add !restart to botrulez
-- save (overwrite) `Bot` config file
+- add Bot config file saving
+- fix the Room not setting its nick correctly upon reconnecting
 
 ## 0.2.0 (2019-04-12)
 
