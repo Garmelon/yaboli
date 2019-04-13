@@ -3,23 +3,18 @@
 Yaboli (**Y**et **A**nother **Bo**t **Li**brary) is a Python library for
 creating bots for [euphoria.io](https://euphoria.io).
 
-- [Changelog](CHANGELOG.md)
 - [Documentation](docs/index.md)
-
-Soon, markdown files containing troubleshooting info will be available.
+- [Changelog](CHANGELOG.md)
 
 ## Installation
 
-Ensure that you have at least Python 3.7 installed. The commands below assume
-that `python` points this version of Python.
-
-In your project directory, run:
+Ensure that you have at least Python 3.7 installed.
 
 ```
-$ python -m venv .
-$ . bin/activate
 $ pip install git+https://github.com/Garmelon/yaboli@v0.2.0
 ```
+
+The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 ## Example echo bot
 
@@ -43,7 +38,7 @@ class EchoBot(yaboli.Bot):
         await message.reply(args.raw)
 ```
 
-The bot's nick and default rooms are specified in a config file.
+The bot's nick, cookie file and default rooms are specified in a config file.
 
 The help command from the botrulez uses the `HELP_GENERAL` and `HELP_SPECIFIC`
 fields.
