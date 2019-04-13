@@ -26,8 +26,10 @@ class Bot(Client):
     ROOMS_SECTION = "rooms"
 
     def __init__(self, config_file: str) -> None:
+        self.config_file = config_file
+
         self.config = configparser.ConfigParser(allow_no_value=True)
-        self.config.read(config_file)
+        self.config.read(self.config_file)
 
         nick = self.config[self.GENERAL_SECTION].get("nick")
         if nick is None:
@@ -38,6 +40,10 @@ class Bot(Client):
         self._commands: List[Command] = []
 
         self.start_time = datetime.datetime.now()
+
+    def save_config(self) -> None:
+        with open(self.config_file, "w") as f:
+            self.config.write(f)
 
     async def started(self) -> None:
         for room, password in self.config[self.ROOMS_SECTION].items():

@@ -3,6 +3,7 @@
 ## Next version
 
 - add !restart to botrulez
+- save (overwrite) `Bot` config file
 
 ## 0.2.0 (2019-04-12)
 
