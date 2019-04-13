@@ -23,9 +23,70 @@ __all__ = ["FancyArgs", "ArgumentData", "SpecificArgumentData", "CommandData",
         "SpecificCommandFunction", "SpecificCommand"]
 
 class FancyArgs(NamedTuple):
+    """
+    The fancy argument parser supports arguments of the following formats:
+
+
+    FLAGS:
+
+    These are one or more characters preceded by a single dash. Examples:
+
+    -a, -fghf, -vv
+
+    The fancy argument parser counts how often each character (also called
+    flag) appears. Each flag that appears once or more gets an entry in the
+    "flags" dict of the form: flags[flag] = amount
+
+    Exception: A single dash ("-") is interpreted as a positional argument.
+
+
+    OPTIONAL:
+
+    These are arguments of the form --<name> or --<name>=<value>, where <name>
+    is the name of the optional argument and <value> is its (optional) value.
+
+    Due to this syntax, the <name> may not include any "=" signs.
+
+    The optional arguments are collected in a dict of the form:
+
+    optional[name] = value or None
+
+    If the optional argument included a "=" after the name, but no further
+    characters, its value is the empty string. If it didn't include a "=" after
+    the name, its value is None.
+
+    If more than one optional argument appears with the same name, the last
+    argument's value is kept and all previous values discarded.
+
+
+    POSITIONAL:
+
+    Positional arguments are all arguments that don't start with "-" or "--".
+    They are compiled in a list and ordered in the same order they appeared in
+    after the command.
+
+
+    RAW:
+
+    At any time, a single "--" argument may be inserted. This separates the
+    positional and optional arguments and the flags from the raw arguments. All
+    arguments after the "--" are interpreted as raw arguments, even flags,
+    optional arguments and further "--"s.
+
+    For example, consider the following arguments:
+
+    ab -cd -c --ef=g --h i -- j --klm -nop -- qr
+
+    positional: ["ab", "i"]
+    optional: {"ef": "g", "h": None}
+    flags: {"c": 2, "d": 1}
+    raw: ["j", "--klm", "-nop", "--", "qr"]
+    """
+
     positional: List[str]
     optional: Dict[str, Optional[str]]
     flags: Dict[str, int]
+    raw: List[str]
 
 class ArgumentData:
     def __init__(self, raw: str) -> None:
@@ -94,7 +155,38 @@ class ArgumentData:
             return text.split()
 
     def _parse_fancy(self, args: List[str]) -> FancyArgs:
-        raise NotImplementedError # TODO
+        positional: List[str] = []
+        optional: Dict[str, Optional[str]] = {}
+        flags: Dict[str, int] = {}
+        raw: List[str] = []
+
+        is_raw = False
+
+        for arg in args:
+            # raw arguments
+            if is_raw:
+                raw.append(arg)
+            # raw arguments separator
+            elif arg == "--":
+                is_raw = True
+            # optional arguments
+            elif arg[:2] == "--":
+                split = arg[2:].split("=", maxsplit=1)
+                name = split[0]
+                value = split[1] if len(split) == 2 else None
+                optional[name] = value
+            # the "-" exception
+            elif arg == "-":
+                positional.append(arg)
+            # flags
+            elif arg[:1] == "-":
+                for char in arg[1:]:
+                    flags[char] = flags.get(char, 0) + 1
+            # positional arguments
+            else:
+                positional.append(arg)
+
+        return FancyArgs(positional, optional, flags, raw)
 
     @property
     def raw(self) -> str:

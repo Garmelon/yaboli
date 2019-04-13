@@ -54,7 +54,6 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 ## TODOs
 
 - [ ] document yaboli (markdown files in a "docs" folder?)
-- [ ] fancy argument parsing
 - [ ] document new classes (docstrings, maybe comments)
 - [ ] write examples
 - [ ] make yaboli package play nice with mypy
@@ -69,3 +68,4 @@ i. e. the text between the end of the "!echo" and the end of the whole message.
 - [x] implement !restart
 - [x] write project readme
 - [x] cookie support
+- [x] fancy argument parsing
