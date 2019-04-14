@@ -191,8 +191,11 @@ class Room:
     async def _on_bounce_event(self, packet: Any) -> None:
         data = packet["data"]
 
-        # Can we even authenticate?
-        if not "passcode" in data.get("auth_options", []):
+        # Can we even authenticate? (Assuming that passcode authentication is
+        # available if no authentication options are given: Euphoria doesn't
+        # (always) send authentication options, even when passcode
+        # authentication works.)
+        if not "passcode" in data.get("auth_options", ["passcode"]):
             self._set_connected_failed()
             return
 

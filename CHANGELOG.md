@@ -2,6 +2,8 @@
 
 ## Next version
 
+- fix room authentication
+
 ## 1.1.1 (2019-04-14)
 
 - add database class for easier sqlite3 access
