@@ -2,7 +2,10 @@
 
 ## Next version
 
+## 1.1.2 (2019-04-14)
+
 - fix room authentication
+- resolve to test yaboli more thoroughly before publishing a new version
 
 ## 1.1.1 (2019-04-14)
 
