@@ -2,6 +2,8 @@
 
 ## Next version
 
+## 1.1.0 (2019-04-14)
+
 - change how config files are passed along
 - change module system to support config file changes
 
