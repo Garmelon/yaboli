@@ -7,6 +7,7 @@ from .bot import *
 from .client import *
 from .command import *
 from .connection import *
+from .database import *
 from .events import *
 from .exceptions import *
 from .message import *
@@ -22,6 +23,7 @@ __all__ += bot.__all__
 __all__ += client.__all__
 __all__ += command.__all__
 __all__ += connection.__all__
+__all__ += database.__all__
 __all__ += events.__all__
 __all__ += exceptions.__all__
 __all__ += message.__all__

@@ -2,6 +2,8 @@
 
 ## Next version
 
+- add database class for easier sqlite3 access
+
 ## 1.1.0 (2019-04-14)
 
 - change how config files are passed along

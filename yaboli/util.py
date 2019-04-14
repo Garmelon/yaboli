@@ -1,8 +1,16 @@
+import asyncio
 import datetime
+import functools
 import re
+from typing import Any, Callable
 
-__all__ = ["mention", "atmention", "normalize", "similar", "plural",
-        "format_time", "format_delta"]
+__all__ = ["asyncify", "mention", "atmention", "normalize", "similar",
+        "plural", "format_time", "format_delta"]
+
+async def asyncify(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    func_with_args = functools.partial(func, *args, **kwargs)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, func_with_args)
 
 # Name/nick related functions
 
