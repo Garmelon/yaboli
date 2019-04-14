@@ -2,6 +2,8 @@
 
 ## Next version
 
+## 1.1.1 (2019-04-14)
+
 - add database class for easier sqlite3 access
 
 ## 1.1.0 (2019-04-14)
