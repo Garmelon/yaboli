@@ -1,6 +1,17 @@
 # Index for yaboli docs
 
-Links to specific sections will be added here.
+  - [Setting up and running a bot](bot_setup.md)
+  - Classes
+    - [Bot](bot.md)
+
+## Getting started
+
+First, read the [overview](#library-structure-overview) below.
+
+To set up your project, follow the [setup guide](bot_setup.md).
+
+To get a feel for how bots are structured, have a look at the example bots or
+read through the docstrings in the `Bot` class.
 
 ## Library structure overview
 
