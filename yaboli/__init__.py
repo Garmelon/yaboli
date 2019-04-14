@@ -1,6 +1,7 @@
 import asyncio
+import configparser
 import logging
-from typing import Callable
+from typing import Callable, Dict
 
 from .bot import *
 from .client import *
@@ -48,12 +49,33 @@ def enable_logging(name: str = "yaboli", level: int = logging.INFO) -> None:
     logger.addHandler(handler)
 
 def run(
-        client: Callable[[str], Client],
-        config_file: str = "bot.conf"
+        bot_constructor: BotConstructor,
+        config_file: str = "bot.conf",
         ) -> None:
+    # Load the config file
+    config = configparser.ConfigParser(allow_no_value=True)
+    config.read(config_file)
+
     async def _run() -> None:
         while True:
-            client_ = client(config_file)
-            await client_.run()
+            bot = bot_constructor(config, config_file)
+            await bot.run()
+
+    asyncio.run(_run())
+
+def run_modulebot(
+        modulebot_constructor: ModuleBotConstructor,
+        module_constructors: Dict[str, ModuleConstructor],
+        config_file: str = "bot.conf",
+        ) -> None:
+    # Load the config file
+    config = configparser.ConfigParser(allow_no_value=True)
+    config.read(config_file)
+
+    async def _run() -> None:
+        while True:
+            modulebot = modulebot_constructor(config, config_file,
+                    module_constructors)
+            await modulebot.run()
 
     asyncio.run(_run())

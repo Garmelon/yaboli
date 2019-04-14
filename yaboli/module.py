@@ -1,5 +1,6 @@
+import configparser
 import logging
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from .bot import Bot
 from .command import *
@@ -10,40 +11,64 @@ from .util import *
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["Module", "ModuleBot"]
+__all__ = ["Module", "ModuleConstructor", "ModuleBot", "ModuleBotConstructor"]
 
 class Module(Bot):
     DESCRIPTION: Optional[str] = None
 
-    def __init__(self, config_file: str, standalone: bool) -> None:
-        super().__init__(config_file)
+    def __init__(self,
+            config: configparser.ConfigParser,
+            config_file: str,
+            standalone: bool = True,
+            ) -> None:
+        super().__init__(config, config_file)
 
         self.standalone = standalone
+
+ModuleConstructor = Callable[[configparser.ConfigParser, str, bool], Module]
 
 class ModuleBot(Bot):
     HELP_PRE: Optional[List[str]] = [
             "This bot contains the following modules:"
     ]
     HELP_POST: Optional[List[str]] = [
-            ""
-            "Use \"!help {atmention} <module>\" to get more information on a"
-            " specific module."
+            "",
+            "For module-specific help, try \"!help {atmention} <module>\".",
     ]
     MODULE_HELP_LIMIT = 5
 
-    def __init__(self, config_file: str) -> None:
-        super().__init__(config_file)
+    MODULES_SECTION = "modules"
 
+    def __init__(self,
+            config: configparser.ConfigParser,
+            config_file: str,
+            module_constructors: Dict[str, ModuleConstructor],
+            ) -> None:
+        super().__init__(config, config_file)
+
+        self.module_constructors = module_constructors
         self.modules: Dict[str, Module] = {}
 
-        self.register_botrulez(help_=False)
-        self.register_general("help", self.cmd_help_general, args=False)
-        self.register_specific("help", self.cmd_help_specific, args=True)
+        # Load initial modules
+        for module_name in self.config[self.MODULES_SECTION]:
+            module_constructor = self.module_constructors.get(module_name)
+            if module_constructor is None:
+                logger.warn(f"Module {module_name} not found")
+                continue
+            # standalone is set to False
+            module = module_constructor(self.config, self.config_file, False)
+            self.load_module(module_name, module)
 
-    def register_module(self, name: str, module: Module) -> None:
+    def load_module(self, name: str, module: Module) -> None:
         if name in self.modules:
             logger.warn(f"Module {name!r} is already registered, overwriting...")
         self.modules[name] = module
+
+    def unload_module(self, name: str) -> None:
+        if name in self.modules:
+            del self.modules[name]
+
+    # Better help messages
 
     def compile_module_overview(self) -> List[str]:
         lines = []
@@ -51,8 +76,12 @@ class ModuleBot(Bot):
         if self.HELP_PRE is not None:
             lines.extend(self.HELP_PRE)
 
+        any_modules = False
+
         modules_without_desc: List[str] = []
         for module_name in sorted(self.modules):
+            any_modules = True
+
             module = self.modules[module_name]
 
             if module.DESCRIPTION is None:
@@ -62,7 +91,10 @@ class ModuleBot(Bot):
                 lines.append(line)
 
         if modules_without_desc:
-            lines.append(", ".join(modules_without_desc))
+            lines.append("\t" + ", ".join(modules_without_desc))
+
+        if not any_modules:
+            lines.append("No modules loaded.")
 
         if self.HELP_POST is not None:
             lines.extend(self.HELP_POST)
@@ -79,8 +111,7 @@ class ModuleBot(Bot):
 
         return module.HELP_SPECIFIC
 
-    # Overwriting the botrulez help function
-    async def cmd_help_specific(self,
+    async def cmd_modules_help(self,
             room: Room,
             message: LiveMessage,
             args: SpecificArgumentData
@@ -99,6 +130,12 @@ class ModuleBot(Bot):
             await message.reply(self.format_help(room, help_lines))
 
     # Sending along all kinds of events
+
+    async def on_connected(self, room: Room) -> None:
+        await super().on_connected(room)
+
+        for module in self.modules.values():
+            await module.on_connected(room)
 
     async def on_snapshot(self, room: Room, messages: List[LiveMessage]) -> None:
         await super().on_snapshot(room, messages)
@@ -141,6 +178,18 @@ class ModuleBot(Bot):
         for module in self.modules.values():
             await module.on_edit(room, message)
 
+    async def on_login(self, room: Room, account_id: str) -> None:
+        await super().on_login(room, account_id)
+
+        for module in self.modules.values():
+            await module.on_login(room, account_id)
+
+    async def on_logout(self, room: Room) -> None:
+        await super().on_logout(room)
+
+        for module in self.modules.values():
+            await module.on_logout(room)
+
     async def on_pm(self,
             room: Room,
             from_id: str,
@@ -158,3 +207,8 @@ class ModuleBot(Bot):
 
         for module in self.modules.values():
             await module.on_disconnect(room, reason)
+
+ModuleBotConstructor = Callable[
+        [configparser.ConfigParser, str, Dict[str, ModuleConstructor]],
+        Bot
+]

@@ -1,7 +1,7 @@
 import configparser
 import datetime
 import logging
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from .client import Client
 from .command import *
@@ -11,7 +11,7 @@ from .util import *
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["Bot"]
+__all__ = ["Bot", "BotConstructor"]
 
 class Bot(Client):
     ALIASES: List[str] = []
@@ -25,11 +25,12 @@ class Bot(Client):
     GENERAL_SECTION = "general"
     ROOMS_SECTION = "rooms"
 
-    def __init__(self, config_file: str) -> None:
+    def __init__(self,
+            config: configparser.ConfigParser,
+            config_file: str,
+            ) -> None:
+        self.config = config
         self.config_file = config_file
-
-        self.config = configparser.ConfigParser(allow_no_value=True)
-        self.config.read(self.config_file)
 
         nick = self.config[self.GENERAL_SECTION].get("nick")
         if nick is None:
@@ -188,3 +189,5 @@ class Bot(Client):
         logger.info(f"Restarted in &{room.name} by {message.sender.atmention}")
         await message.reply(self.RESTART_REPLY)
         await self.stop()
+
+BotConstructor = Callable[[configparser.ConfigParser, str], Bot]

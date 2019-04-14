@@ -2,6 +2,9 @@
 
 ## Next version
 
+- change how config files are passed along
+- change module system to support config file changes
+
 # 1.0.0 (2019-04-13)
 
 - add fancy argument parsing
