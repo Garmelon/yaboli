@@ -2,6 +2,8 @@
 
 ## Next version
 
+- add timeout for creating ws connections
+
 ## 1.1.2 (2019-04-14)
 
 - fix room authentication

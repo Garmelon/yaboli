@@ -82,6 +82,9 @@ class Connection:
     "part-event" and "ping".
     """
 
+    # Timeout for waiting for the ws connection to be established
+    CONNECT_TIMEOUT = 10 # seconds
+
     # Maximum duration between euphoria's ping messages. Euphoria usually sends
     # ping messages every 20 to 30 seconds.
     PING_TIMEOUT = 40 # seconds
@@ -183,8 +186,12 @@ class Connection:
 
         try:
             logger.debug(f"Creating ws connection to {self._url!r}")
-            ws = await websockets.connect(self._url,
-                    extra_headers=self._cookie_jar.get_cookies_as_headers())
+            ws = await asyncio.wait_for(
+                    websockets.connect(self._url,
+                        extra_headers=self._cookie_jar.get_cookies_as_headers()),
+                    self.CONNECT_TIMEOUT
+            )
+            logger.debug(f"Established ws connection to {self._url!r}")
 
             self._ws = ws
             self._awaiting_replies = {}
@@ -200,7 +207,7 @@ class Connection:
             return True
 
         except (websockets.InvalidHandshake, websockets.InvalidStatusCode,
-                socket.gaierror):
+                socket.gaierror, asyncio.TimeoutError):
             logger.debug("Connection failed")
             return False
 
