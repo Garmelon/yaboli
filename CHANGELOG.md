@@ -2,6 +2,10 @@
 
 ## Next version
 
+Nothing yet
+
+## 1.1.3 (2019-04-19)
+
 - add timeout for creating ws connections
 - fix config file not reloading when restarting bots
 
