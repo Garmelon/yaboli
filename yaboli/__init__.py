@@ -54,12 +54,12 @@ def run(
         bot_constructor: BotConstructor,
         config_file: str = "bot.conf",
         ) -> None:
-    # Load the config file
-    config = configparser.ConfigParser(allow_no_value=True)
-    config.read(config_file)
-
     async def _run() -> None:
         while True:
+            # Load the config file
+            config = configparser.ConfigParser(allow_no_value=True)
+            config.read(config_file)
+
             bot = bot_constructor(config, config_file)
             await bot.run()
 
@@ -70,12 +70,12 @@ def run_modulebot(
         module_constructors: Dict[str, ModuleConstructor],
         config_file: str = "bot.conf",
         ) -> None:
-    # Load the config file
-    config = configparser.ConfigParser(allow_no_value=True)
-    config.read(config_file)
-
     async def _run() -> None:
         while True:
+            # Load the config file
+            config = configparser.ConfigParser(allow_no_value=True)
+            config.read(config_file)
+
             modulebot = modulebot_constructor(config, config_file,
                     module_constructors)
             await modulebot.run()
