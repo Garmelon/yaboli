@@ -2,7 +2,8 @@
 
 ## Next version
 
-Nothing yet
+- add docstrings to `Bot`
+- change `KILL_REPLY` and `RESTART_REPLY` to be optional in `Bot`
 
 ## 1.1.3 (2019-04-19)
 
