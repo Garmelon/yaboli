@@ -19,8 +19,8 @@ class Bot(Client):
     PING_REPLY: str = "Pong!"
     HELP_GENERAL: Optional[str] = None
     HELP_SPECIFIC: Optional[List[str]] = None
-    KILL_REPLY: str = "/me dies"
-    RESTART_REPLY: str = "/me restarts"
+    KILL_REPLY: Optional[str] = "/me dies"
+    RESTART_REPLY: Optional[str] = "/me restarts"
 
     GENERAL_SECTION = "general"
     ROOMS_SECTION = "rooms"
@@ -178,7 +178,10 @@ class Bot(Client):
             args: SpecificArgumentData
             ) -> None:
         logger.info(f"Killed in &{room.name} by {message.sender.atmention}")
-        await message.reply(self.KILL_REPLY)
+
+        if self.KILL_REPLY is not None:
+            await message.reply(self.KILL_REPLY)
+
         await self.part(room)
 
     async def cmd_restart(self,
@@ -187,7 +190,10 @@ class Bot(Client):
             args: SpecificArgumentData
             ) -> None:
         logger.info(f"Restarted in &{room.name} by {message.sender.atmention}")
-        await message.reply(self.RESTART_REPLY)
+
+        if self.RESTART_REPLY is not None:
+            await message.reply(self.RESTART_REPLY)
+
         await self.stop()
 
 BotConstructor = Callable[[configparser.ConfigParser, str], Bot]
