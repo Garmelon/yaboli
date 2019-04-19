@@ -4,6 +4,7 @@
 
 - add docstrings to `Bot`
 - change `KILL_REPLY` and `RESTART_REPLY` to be optional in `Bot`
+- fix imports
 
 ## 1.1.3 (2019-04-19)
 

@@ -17,7 +17,7 @@ from .session import *
 from .util import *
 
 __all__ = ["STYLE", "FORMAT", "DATE_FORMAT", "FORMATTER", "enable_logging",
-        "run"]
+        "run", "run_modulebot"]
 
 __all__ += bot.__all__
 __all__ += client.__all__
