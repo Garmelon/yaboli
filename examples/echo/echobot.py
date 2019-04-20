@@ -8,13 +8,14 @@ class EchoBot(yaboli.Bot):
             "!echo <text> – reply with exactly <text>",
     ]
 
-    def __init__(self, config_file):
-        super().__init__(config_file)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.register_botrulez(kill=True)
         self.register_general("echo", self.cmd_echo)
 
     async def cmd_echo(self, room, message, args):
-        await message.reply(args.raw)
+        text = args.raw.strip() # ignoring leading and trailing whitespace
+        await message.reply(text)
 
 
 if __name__ == "__main__":
