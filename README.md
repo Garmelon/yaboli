@@ -39,7 +39,17 @@ class EchoBot(yaboli.Bot):
         await message.reply(args.raw)
 ```
 
-The bot's nick, cookie file and default rooms are specified in a config file.
+The bot's nick, cookie file and default rooms are specified in a config file,
+like so:
+
+```ini
+[general]
+nick = EchoBot
+cookie_file = bot.cookie
+
+[rooms]
+test
+```
 
 The help command from the botrulez uses the `HELP_GENERAL` and `HELP_SPECIFIC`
 fields.
@@ -51,6 +61,9 @@ commands like !kill need to be enabled explicitly.
 In the `cmd_echo` function, the echo command is implemented. In this case, the
 bot replies to the message containing the command with the raw argument string,
 i. e. the text between the end of the "!echo" and the end of the whole message.
+
+The full version of this echobot can be found [in the
+examples](examples/echo/).
 
 ## TODOs
 
