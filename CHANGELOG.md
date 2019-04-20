@@ -4,8 +4,9 @@
 
 - add docstrings to `Bot`
 - change `KILL_REPLY` and `RESTART_REPLY` to be optional in `Bot`
-- fix echobot example
 - fix imports
+- update echobot example to newest version
+- update example gitignore to newest version
 
 ## 1.1.3 (2019-04-19)
 
