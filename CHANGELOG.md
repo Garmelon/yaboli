@@ -5,6 +5,7 @@
 - add docstrings to `Bot`
 - change `KILL_REPLY` and `RESTART_REPLY` to be optional in `Bot`
 - fix imports
+- fix room firing incorrect event
 - update echobot example to newest version
 - update example gitignore to newest version
 

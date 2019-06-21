@@ -180,10 +180,10 @@ class Room:
         if nick is not None and self._session is not None:
             self._session = self.session.with_nick(nick)
 
-        # Send "session" event
+        # Send "snapshot" event
         messages = [LiveMessage.from_data(self, msg_data)
                 for msg_data in data["log"]]
-        self._events.fire("session", messages)
+        self._events.fire("snapshot", messages)
 
         self._snapshot_received = True
         await self._try_set_connected()
