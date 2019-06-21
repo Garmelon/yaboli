@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name="yaboli",
-        version="1.1.3",
+        version="1.1.4",
         packages=["yaboli"],
         install_requires=["websockets==7.0"],
 )
