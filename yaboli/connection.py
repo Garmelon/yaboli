@@ -207,7 +207,7 @@ class Connection:
             return True
 
         except (websockets.InvalidHandshake, websockets.InvalidStatusCode,
-                socket.gaierror, asyncio.TimeoutError):
+                OSError, asyncio.TimeoutError):
             logger.debug("Connection failed")
             return False
 
