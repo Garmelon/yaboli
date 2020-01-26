@@ -2,7 +2,9 @@
 
 ## Next version
 
-Nothing yet.
+## 1.1.5 (2020-01-26)
+
+- more stability (I think)
 
 ## 1.1.4 (2019-06-21)
 
