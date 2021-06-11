@@ -4,7 +4,7 @@ setup(
         name="yaboli",
         version="1.1.5",
         packages=["yaboli"],
-        install_requires=["websockets==7.0"],
+        install_requires=["websockets==9.1"],
 )
 
 # When updating the version, also:
