@@ -1,15 +1,3 @@
-# python stuff
-__pycache__/
-
-# venv stuff
-bin/
-include/
-lib/
-lib64
-pyvenv.cfg
-
-# bot stuff
-#
 # These files are ignored because they may contain sensitive information you
 # wouldn't want in your repo. If you need to have a config file in your repo,
 # store a bot.conf.default with default settings.

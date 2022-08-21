@@ -3,6 +3,7 @@
 ## Next version
 
 - update websockets dependency
+- switch to pyproject.toml style setuptools config
 
 ## 1.1.5 (2020-01-26)
 

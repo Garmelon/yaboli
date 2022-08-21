@@ -1,11 +1,13 @@
-from setuptools import setup
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
-setup(
-        name="yaboli",
-        version="1.1.5",
-        packages=["yaboli"],
-        install_requires=["websockets >=10.3, <11"],
-)
+[project]
+name = "yaboli"
+version = "1.1.5"
+dependencies = [
+	"websockets >=10.3, <11"
+]
 
 # When updating the version, also:
 # - update the README.md installation instructions

@@ -1,12 +1,4 @@
-# python stuff
 __pycache__/
-
-# venv stuff
-bin/
-include/
-lib/
-lib64
-pyvenv.cfg
-
-# mypy stuff
-.mypy_cache/
+*.egg-info/
+/.mypy_cache/
+/.venv/
