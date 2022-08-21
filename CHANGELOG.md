@@ -2,6 +2,8 @@
 
 ## Next version
 
+- update websockets dependency
+
 ## 1.1.5 (2020-01-26)
 
 - more stability (I think)
