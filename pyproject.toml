@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yaboli"
-version = "1.1.5"
+version = "1.2.0"
 dependencies = [
 	"websockets >=10.3, <11"
 ]
